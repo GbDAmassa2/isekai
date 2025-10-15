@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Modal, ModalSection, ModalGrid, ModalCard } from "@/components/ui/modal"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useIsekai } from "./isekai-provider"
 import { AddMangaDialog } from "./add-manga-dialog"
@@ -26,6 +27,7 @@ import {
   BookOpen, 
   Sparkles, 
   Plus, 
+  Minus,
   Edit, 
   Trash2, 
   ExternalLink, 
@@ -97,6 +99,24 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const hpMax = 100 + (profile.attributes.vitality || 0) * 10
   const mpMax = 50 + (profile.attributes.intelligence || 0) * 5
   const staminaMax = 80 + (profile.attributes.agility || 0) * 3
+
+  // Estados para persistir valores editados dos status vitais
+  const [editedVitals, setEditedVitals] = useState({
+    currentHP: hpMax,
+    currentMP: mpMax,
+    currentStamina: staminaMax,
+    maxHP: hpMax,
+    maxMP: mpMax,
+    maxStamina: staminaMax
+  })
+  
+  // Usar os valores persistentes
+  const currentHP = editedVitals.currentHP
+  const currentMP = editedVitals.currentMP
+  const currentStamina = editedVitals.currentStamina
+  const maxHP = editedVitals.maxHP
+  const maxMP = editedVitals.maxMP
+  const maxStamina = editedVitals.maxStamina
 
   const hpCurrent = Math.min(hpMax, hpMax * 0.8) // Simular HP atual
   const mpCurrent = Math.min(mpMax, mpMax * 0.6) // Simular MP atual
@@ -347,54 +367,54 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               variant="outline"
               size="sm"
               onClick={() => handleModalOpen("attributes")}
-              className="text-xs border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
             >
-              <TrendingUp className="w-3 h-3 mr-1" />
+              <TrendingUp className="w-4 h-4 mr-1 text-amber-300" />
               Atributos
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleModalOpen("abilities")}
-              className="text-xs border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
             >
-              <Zap className="w-3 h-3 mr-1" />
+              <Zap className="w-4 h-4 mr-1 text-yellow-400" />
               Habilidades
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleModalOpen("inventory")}
-              className="text-xs border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
             >
-              <Package className="w-3 h-3 mr-1" />
+              <Package className="w-4 h-4 mr-1 text-blue-400" />
               Inventário
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleModalOpen("mangas")}
-              className="text-xs border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
             >
-              <BookOpen className="w-3 h-3 mr-1" />
+              <BookOpen className="w-4 h-4 mr-1 text-green-400" />
               Mangás
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleModalOpen("titles")}
-              className="text-xs border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
             >
-              <Trophy className="w-3 h-3 mr-1" />
+              <Trophy className="w-4 h-4 mr-1 text-purple-400" />
               Títulos
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleModalOpen("settings")}
-              className="text-xs border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
             >
-              <Settings className="w-3 h-3 mr-1" />
+              <Settings className="w-4 h-4 mr-1 text-gray-400" />
               Config
             </Button>
           </div>
@@ -403,267 +423,351 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       )}
 
       {/* Modal de Atributos */}
-      <Dialog open={activeModal === "attributes"} onOpenChange={(open) => {
-        if (!open) {
+      <Modal
+        isOpen={activeModal === "attributes"}
+        onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
-        }
-      }}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-800 border-amber-500/30">
-          <DialogHeader>
-            <DialogTitle className="text-amber-200 font-serif text-2xl">⚔️ Atributos do Personagem</DialogTitle>
-            <p className="text-amber-300/80 text-sm">Informações completas sobre seus atributos e estatísticas</p>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Status Vitais Detalhados */}
-            <div className="bg-slate-700/30 rounded-lg p-6 border border-amber-500/20">
-              <h3 className="text-xl font-bold text-amber-200 mb-4 font-serif">💖 Status Vitais</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* HP */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Heart className="w-8 h-8 text-red-500" />
-                    <div>
-                      <h4 className="text-lg font-semibold text-red-200">Vida (HP)</h4>
-                      <p className="text-sm text-red-300/80">Pontos de vida</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-red-300">Atual</span>
-                      <span className="font-bold text-red-200">{Math.floor(hpCurrent)} / {hpMax}</span>
-                    </div>
-                    <Progress value={hpPercentage} className="h-3 bg-slate-600" />
-                    <div className="text-xs text-red-300/60">
-                      Base: 100 + ({profile.attributes.vitality || 0} × 10) = {hpMax}
-                    </div>
-                  </div>
+        }}
+        title="Atributos do Personagem"
+        icon="⚔️"
+        size="xl"
+      >
+        <ModalSection title="Status Vitais" icon="💖">
+          <ModalGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }} gap="lg">
+            {/* HP */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <Heart className="w-10 h-10 text-red-400" />
+                <div>
+                  <h4 className="text-xl font-semibold text-red-200">Vida (HP)</h4>
+                  <p className="text-base text-red-300/80">Pontos de vida</p>
                 </div>
-
-                {/* MP */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Droplet className="w-8 h-8 text-blue-500" />
-                    <div>
-                      <h4 className="text-lg font-semibold text-blue-200">Mana (MP)</h4>
-                      <p className="text-sm text-blue-300/80">Pontos de mana</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-blue-300">Atual</span>
-                      <span className="font-bold text-blue-200">{Math.floor(mpCurrent)} / {mpMax}</span>
-                    </div>
-                    <Progress value={mpPercentage} className="h-3 bg-slate-600" />
-                    <div className="text-xs text-blue-300/60">
-                      Base: 50 + ({profile.attributes.intelligence || 0} × 5) = {mpMax}
-                    </div>
-                  </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-lg">
+                  <span className="text-red-300">Atual</span>
+                  <span className="font-bold text-red-200 text-xl">{Math.floor(currentHP)} / {maxHP}</span>
                 </div>
-
-                {/* Stamina */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Wind className="w-8 h-8 text-green-500" />
-                    <div>
-                      <h4 className="text-lg font-semibold text-green-200">Stamina</h4>
-                      <p className="text-sm text-green-300/80">Energia física</p>
-                    </div>
+                <Progress 
+                  value={(currentHP / maxHP) * 100} 
+                  className="h-4 bg-slate-600"
+                />
+                <div className="text-sm text-red-300/60">
+                  Base: 100 + ({profile.attributes.vitality || 0} × 10) = {hpMax} | Máximo: {maxHP}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          currentHP: Math.max(0, prev.currentHP - 1)
+                        }))
+                      }}
+                      className="text-red-400 border-red-400/50 hover:bg-red-400/20"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          currentHP: Math.min(prev.maxHP, prev.currentHP + 1)
+                        }))
+                      }}
+                      className="text-red-400 border-red-400/50 hover:bg-red-400/20"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-green-300">Atual</span>
-                      <span className="font-bold text-green-200">{Math.floor(staminaCurrent)} / {staminaMax}</span>
-                    </div>
-                    <Progress value={staminaPercentage} className="h-3 bg-slate-600" />
-                    <div className="text-xs text-green-300/60">
-                      Base: 80 + ({profile.attributes.agility || 0} × 3) = {staminaMax}
-                    </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          maxHP: prev.maxHP - 1,
+                          currentHP: prev.currentHP > prev.maxHP - 1 ? prev.maxHP - 1 : prev.currentHP
+                        }))
+                      }}
+                      className="text-red-500 border-red-500/50 hover:bg-red-500/20"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          maxHP: prev.maxHP + 1
+                        }))
+                      }}
+                      className="text-red-500 border-red-500/50 hover:bg-red-500/20"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-red-300/60 ml-2">Max</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Atributos Primários */}
-            <div className="bg-slate-700/30 rounded-lg p-6 border border-amber-500/20">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-amber-200 font-serif">⭐ Atributos Primários</h3>
-                <Button
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
-                  size="sm"
-                  onClick={() => setEditAttributesDialogOpen(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Editar Atributos
-                </Button>
+            {/* MP */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Droplet className="w-10 h-10 text-blue-400" />
+                <div>
+                  <h4 className="text-xl font-semibold text-blue-200">Mana (MP)</h4>
+                  <p className="text-base text-blue-300/80">Pontos de mana</p>
+                </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {Object.entries(profile.attributes).map(([key, value]) => (
-                  <div 
-                    key={key} 
-                    className="flex flex-col items-center gap-3 p-4 bg-slate-600/30 rounded-lg border border-amber-500/20 hover:scale-105 transition-all duration-300 cursor-pointer group"
-                  >
-                    <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
-                      {key === "strength" && "⚔️"}
-                      {key === "agility" && "⚡"}
-                      {key === "intelligence" && "🔮"}
-                      {key === "vitality" && "❤️"}
-                      {key === "luck" && "🍀"}
-                      {!["strength", "agility", "intelligence", "vitality", "luck"].includes(key) && "✨"}
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-amber-300 capitalize font-serif mb-1">{key}</div>
-                      <div className="text-3xl font-bold text-amber-200">{value}</div>
-                    </div>
-                    {/* Barra de progresso visual */}
-                    <div className="w-full bg-slate-600 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-amber-500 to-amber-400 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min((value / 50) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Atributos Derivados */}
-            <div className="bg-slate-700/30 rounded-lg p-6 border border-amber-500/20">
-              <h3 className="text-xl font-bold text-amber-200 mb-4 font-serif">🛡️ Atributos Derivados</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Ataque Físico */}
-                <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-lg border border-red-500/20">
-                  <div className="text-3xl">⚔️</div>
-                  <div>
-                    <div className="text-sm text-red-300">Ataque Físico</div>
-                    <div className="text-xl font-bold text-red-200">
-                      {Math.floor((profile.attributes.strength || 0) * 2.5)}
-                    </div>
-                  </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-lg">
+                  <span className="text-blue-300">Atual</span>
+                  <span className="font-bold text-blue-200 text-xl">{Math.floor(currentMP)} / {maxMP}</span>
                 </div>
-
-                {/* Ataque Mágico */}
-                <div className="flex items-center gap-3 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                  <div className="text-3xl">🔮</div>
-                  <div>
-                    <div className="text-sm text-purple-300">Ataque Mágico</div>
-                    <div className="text-xl font-bold text-purple-200">
-                      {Math.floor((profile.attributes.intelligence || 0) * 3)}
-                    </div>
-                  </div>
+                <Progress 
+                  value={(currentMP / maxMP) * 100} 
+                  className="h-4 bg-slate-600"
+                />
+                <div className="text-sm text-blue-300/60">
+                  Base: 50 + ({profile.attributes.intelligence || 0} × 5) = {mpMax} | Máximo: {maxMP}
                 </div>
-
-                {/* Defesa Física */}
-                <div className="flex items-center gap-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <div className="text-3xl">🛡️</div>
-                  <div>
-                    <div className="text-sm text-blue-300">Defesa Física</div>
-                    <div className="text-xl font-bold text-blue-200">
-                      {Math.floor((profile.attributes.vitality || 0) * 1.5)}
-                    </div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          currentMP: Math.max(0, prev.currentMP - 1)
+                        }))
+                      }}
+                      className="text-blue-400 border-blue-400/50 hover:bg-blue-400/20"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          currentMP: Math.min(prev.maxMP, prev.currentMP + 1)
+                        }))
+                      }}
+                      className="text-blue-400 border-blue-400/50 hover:bg-blue-400/20"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
                   </div>
-                </div>
-
-                {/* Defesa Mágica */}
-                <div className="flex items-center gap-3 p-4 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                  <div className="text-3xl">🔰</div>
-                  <div>
-                    <div className="text-sm text-cyan-300">Defesa Mágica</div>
-                    <div className="text-xl font-bold text-cyan-200">
-                      {Math.floor((profile.attributes.intelligence || 0) * 2)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Velocidade */}
-                <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <div className="text-3xl">💨</div>
-                  <div>
-                    <div className="text-sm text-green-300">Velocidade</div>
-                    <div className="text-xl font-bold text-green-200">
-                      {Math.floor((profile.attributes.agility || 0) * 2)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Crítico */}
-                <div className="flex items-center gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                  <div className="text-3xl">💥</div>
-                  <div>
-                    <div className="text-sm text-yellow-300">Taxa Crítica</div>
-                    <div className="text-xl font-bold text-yellow-200">
-                      {Math.floor((profile.attributes.luck || 0) * 1.2)}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Evasão */}
-                <div className="flex items-center gap-3 p-4 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                  <div className="text-3xl">🌪️</div>
-                  <div>
-                    <div className="text-sm text-indigo-300">Evasão</div>
-                    <div className="text-xl font-bold text-indigo-200">
-                      {Math.floor((profile.attributes.agility || 0) * 1.5)}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Regeneração */}
-                <div className="flex items-center gap-3 p-4 bg-pink-500/10 rounded-lg border border-pink-500/20">
-                  <div className="text-3xl">💚</div>
-                  <div>
-                    <div className="text-sm text-pink-300">Regeneração</div>
-                    <div className="text-xl font-bold text-pink-200">
-                      {Math.floor((profile.attributes.vitality || 0) * 0.8)}/turno
-                    </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          maxMP: prev.maxMP - 1,
+                          currentMP: prev.currentMP > prev.maxMP - 1 ? prev.maxMP - 1 : prev.currentMP
+                        }))
+                      }}
+                      className="text-blue-500 border-blue-500/50 hover:bg-blue-500/20"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          maxMP: prev.maxMP + 1
+                        }))
+                      }}
+                      className="text-blue-500 border-blue-500/50 hover:bg-blue-500/20"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-blue-300/60 ml-2">Max</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Resumo de Progressão */}
-            <div className="bg-slate-700/30 rounded-lg p-6 border border-amber-500/20">
-              <h3 className="text-xl font-bold text-amber-200 mb-4 font-serif">📊 Resumo de Progressão</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-slate-600/30 rounded-lg">
-                  <div className="text-2xl mb-2">📚</div>
-                  <div className="text-sm text-amber-300">Mangás Lidos</div>
-                  <div className="text-xl font-bold text-amber-200">{profile.totalMangasRead}</div>
+            {/* Stamina */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Wind className="w-10 h-10 text-green-400" />
+                <div>
+                  <h4 className="text-xl font-semibold text-green-200">Stamina</h4>
+                  <p className="text-base text-green-300/80">Energia física</p>
                 </div>
-                <div className="text-center p-4 bg-slate-600/30 rounded-lg">
-                  <div className="text-2xl mb-2">⭐</div>
-                  <div className="text-sm text-amber-300">Habilidades</div>
-                  <div className="text-xl font-bold text-amber-200">{profile.totalAbilities}</div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-lg">
+                  <span className="text-green-300">Atual</span>
+                  <span className="font-bold text-green-200 text-xl">{Math.floor(currentStamina)} / {maxStamina}</span>
                 </div>
-                <div className="text-center p-4 bg-slate-600/30 rounded-lg">
-                  <div className="text-2xl mb-2">👑</div>
-                  <div className="text-sm text-amber-300">Títulos</div>
-                  <div className="text-xl font-bold text-amber-200">{profile.titles.length}</div>
+                <Progress 
+                  value={(currentStamina / maxStamina) * 100} 
+                  className="h-4 bg-slate-600"
+                />
+                <div className="text-sm text-green-300/60">
+                  Base: 80 + ({profile.attributes.agility || 0} × 3) = {staminaMax} | Máximo: {maxStamina}
                 </div>
-                <div className="text-center p-4 bg-slate-600/30 rounded-lg">
-                  <div className="text-2xl mb-2">🎯</div>
-                  <div className="text-sm text-amber-300">Nível</div>
-                  <div className="text-xl font-bold text-amber-200">{profile.level}</div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          currentStamina: Math.max(0, prev.currentStamina - 1)
+                        }))
+                      }}
+                      className="text-green-400 border-green-400/50 hover:bg-green-400/20"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          currentStamina: Math.min(prev.maxStamina, prev.currentStamina + 1)
+                        }))
+                      }}
+                      className="text-green-400 border-green-400/50 hover:bg-green-400/20"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          maxStamina: prev.maxStamina - 1,
+                          currentStamina: prev.currentStamina > prev.maxStamina - 1 ? prev.maxStamina - 1 : prev.currentStamina
+                        }))
+                      }}
+                      className="text-green-500 border-green-500/50 hover:bg-green-500/20"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditedVitals(prev => ({
+                          ...prev,
+                          maxStamina: prev.maxStamina + 1
+                        }))
+                      }}
+                      className="text-green-500 border-green-500/50 hover:bg-green-500/20"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-green-300/60 ml-2">Max</span>
+                  </div>
                 </div>
               </div>
             </div>
+          </ModalGrid>
+        </ModalSection>
+
+        <ModalSection title="Atributos Primários" icon="⭐">
+          <div className="flex justify-between items-center mb-4">
+            <div></div>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              size="sm"
+              onClick={() => setEditAttributesDialogOpen(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Editar Atributos
+            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+          <ModalGrid columns={{ mobile: 3, tablet: 5, desktop: 5 }} gap="md">
+            {Object.entries(profile.attributes).map(([key, value]) => (
+              <div 
+                key={key} 
+                className="flex flex-col items-center gap-3 p-4 bg-slate-600/50 rounded-lg border border-amber-500/30 hover:scale-105 transition-all duration-300 cursor-pointer group shadow-lg shadow-purple-500/10"
+              >
+                <div className="text-4xl group-hover:scale-110 transition-transform duration-300 brightness-110">
+                  {key === "strength" && "⚔️"}
+                  {key === "agility" && "⚡"}
+                  {key === "intelligence" && "🔮"}
+                  {key === "vitality" && "❤️"}
+                  {key === "luck" && "🍀"}
+                  {!["strength", "agility", "intelligence", "vitality", "luck"].includes(key) && "✨"}
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-amber-300 capitalize font-serif mb-1">{key}</div>
+                  <div className="text-2xl font-bold text-amber-200">{value}</div>
+                </div>
+                {/* Barra de progresso visual */}
+                <div className="w-full bg-slate-600 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-amber-500 to-amber-400 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min((value / 50) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </ModalGrid>
+        </ModalSection>
+
+        <ModalSection title="Resumo de Progressão" icon="📊">
+          <ModalGrid columns={{ mobile: 2, tablet: 4, desktop: 4 }} gap="md">
+            <div className="text-center p-4 bg-slate-600/50 rounded-lg border border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
+              <div className="text-3xl mb-2">📚</div>
+              <div className="text-sm text-amber-300 font-semibold">Mangás Lidos</div>
+              <div className="text-xl font-bold text-amber-200">{profile.totalMangasRead}</div>
+            </div>
+            <div className="text-center p-4 bg-slate-600/50 rounded-lg border border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
+              <div className="text-3xl mb-2">⭐</div>
+              <div className="text-sm text-amber-300 font-semibold">Habilidades</div>
+              <div className="text-xl font-bold text-amber-200">{profile.totalAbilities}</div>
+            </div>
+            <div className="text-center p-4 bg-slate-600/50 rounded-lg border border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
+              <div className="text-3xl mb-2">👑</div>
+              <div className="text-sm text-amber-300 font-semibold">Títulos</div>
+              <div className="text-xl font-bold text-amber-200">{profile.titles.length}</div>
+            </div>
+            <div className="text-center p-4 bg-slate-600/50 rounded-lg border border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
+              <div className="text-3xl mb-2">🎯</div>
+              <div className="text-sm text-amber-300 font-semibold">Nível</div>
+              <div className="text-xl font-bold text-amber-200">{profile.level}</div>
+            </div>
+          </ModalGrid>
+        </ModalSection>
+      </Modal>
 
       {/* Modal de Habilidades */}
-      <Dialog open={activeModal === "abilities"} onOpenChange={(open) => {
-        if (!open) {
+      <Modal
+        isOpen={activeModal === "abilities"}
+        onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-slate-800 border-amber-500/30">
-          <DialogHeader>
-            <DialogTitle className="text-amber-200 font-serif">⭐ Habilidades</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+        }}
+        title="Habilidades"
+        icon="⭐"
+        size="lg"
+      >
             <div className="flex justify-between items-center">
               <h3 className="text-amber-200 font-serif">Minhas Habilidades</h3>
               <Button
@@ -686,45 +790,45 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {abilities.map((ability) => (
-                  <Card key={ability.id} className="bg-slate-700/30 border-amber-500/20">
+                  <Card key={ability.id} className="bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h4 className="font-bold text-amber-200">{ability.name}</h4>
-                          <div className="flex gap-2 mt-1 flex-wrap">
-                            <Badge variant={ability.type === "active" ? "default" : "secondary"} className="text-xs">
+                          <h4 className="text-xl font-bold text-amber-200 mb-2">{ability.name}</h4>
+                          <div className="flex gap-3 mt-2 flex-wrap">
+                            <Badge variant={ability.type === "active" ? "default" : "secondary"} className="text-sm px-3 py-1">
                               {ability.type === "active" ? "Ativa" : "Passiva"}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">Nível {ability.level}</Badge>
-                            <Badge className="bg-gradient-power text-xs">Poder: {ability.power}</Badge>
+                            <Badge variant="outline" className="text-sm px-3 py-1">Nível {ability.level}</Badge>
+                            <Badge className="bg-gradient-power text-sm px-3 py-1">Poder: {ability.power}</Badge>
                           </div>
                         </div>
                       </div>
-                      <p className="text-sm text-amber-300/80 mb-3">{ability.description}</p>
+                      <p className="text-base text-amber-300/80 mb-4">{ability.description}</p>
                       <div className="flex gap-2">
                         <Button
-                          size="sm"
+                          size="default"
                           variant="outline"
-                          className="flex-1 text-xs"
+                          className="flex-1 text-sm"
                           onClick={() => {
                             setAbilityToEdit(ability)
                             setEditAbilityDialogOpen(true)
                           }}
                         >
-                          <Edit className="w-3 h-3 mr-1" />
+                          <Edit className="w-4 h-4 mr-2" />
                           Editar
                         </Button>
                         <Button
-                          size="sm"
+                          size="default"
                           variant="outline"
-                          className="flex-1 text-destructive hover:text-destructive text-xs"
+                          className="flex-1 text-destructive hover:text-destructive text-sm"
                           onClick={() => {
                             if (confirm(`Tem certeza que deseja excluir a habilidade "${ability.name}"?`)) {
                               deleteAbility(ability.id)
                             }
                           }}
                         >
-                          <Trash2 className="w-3 h-3 mr-1" />
+                          <Trash2 className="w-4 h-4 mr-2" />
                           Excluir
                         </Button>
                       </div>
@@ -733,22 +837,19 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 ))}
               </div>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {/* Modal de Inventário */}
-      <Dialog open={activeModal === "inventory"} onOpenChange={(open) => {
-        if (!open) {
+      <Modal
+        isOpen={activeModal === "inventory"}
+        onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-slate-800 border-amber-500/30">
-          <DialogHeader>
-            <DialogTitle className="text-amber-200 font-serif">🎒 Inventário</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+        }}
+        title="Inventário"
+        icon="🎒"
+        size="lg"
+      >
             <div className="flex justify-between items-center">
               <h3 className="text-amber-200 font-serif">Meu Inventário</h3>
               <Button
@@ -771,7 +872,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {items.map((item) => (
-                  <Card key={item.id} className="bg-slate-700/30 border-amber-500/20">
+                  <Card key={item.id} className="bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
                     <CardContent className="p-4">
                       <div className="mb-2">
                         <h4 className="font-bold text-amber-200">{item.name}</h4>
@@ -829,22 +930,19 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 ))}
               </div>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {/* Modal de Mangás */}
-      <Dialog open={activeModal === "mangas"} onOpenChange={(open) => {
-        if (!open) {
+      <Modal
+        isOpen={activeModal === "mangas"}
+        onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
-        }
-      }}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto bg-slate-800 border-amber-500/30">
-          <DialogHeader>
-            <DialogTitle className="text-amber-200 font-serif">📚 Biblioteca</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+        }}
+        title="Biblioteca"
+        icon="📚"
+        size="lg"
+      >
             <div className="flex justify-between items-center">
               <h3 className="text-amber-200 font-serif">Minha Biblioteca</h3>
               <Button 
@@ -866,7 +964,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 {mangas.map((manga) => (
                   <Card 
                     key={manga.id} 
-                    className="relative overflow-hidden bg-slate-700/30 border-amber-500/20 hover:scale-105 transition-all duration-300 cursor-pointer group"
+                    className="relative overflow-hidden bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300 cursor-pointer group"
                   >
                     {manga.coverImage && (
                       <div className="absolute inset-0">
@@ -951,22 +1049,19 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 ))}
               </div>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {/* Modal de Títulos */}
-      <Dialog open={activeModal === "titles"} onOpenChange={(open) => {
-        if (!open) {
+      <Modal
+        isOpen={activeModal === "titles"}
+        onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-slate-800 border-amber-500/30">
-          <DialogHeader>
-            <DialogTitle className="text-amber-200 font-serif">👑 Títulos</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+        }}
+        title="Títulos"
+        icon="👑"
+        size="md"
+      >
             <div className="flex justify-between items-center">
               <h3 className="text-amber-200 font-serif">Meus Títulos</h3>
               <Button
@@ -991,7 +1086,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 {titles.map((title) => (
                   <Card 
                     key={title.id} 
-                    className="bg-slate-700/30 border-amber-500/20 hover:scale-105 transition-all duration-300 cursor-pointer group"
+                    className="bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300 cursor-pointer group"
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
@@ -1062,51 +1157,52 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 ))}
               </div>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {/* Modal de Configurações */}
-      <Dialog open={activeModal === "settings"} onOpenChange={(open) => {
-        if (!open) {
+      <Modal
+        isOpen={activeModal === "settings"}
+        onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
-        }
-      }}>
-        <DialogContent className="max-w-2xl bg-slate-800 border-amber-500/30">
-          <DialogHeader>
-            <DialogTitle className="text-amber-200 font-serif">⚙️ Configurações</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        }}
+        title="Configurações"
+        icon="⚙️"
+        size="md"
+      >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Button
                 onClick={handleExportData}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-green-600 hover:bg-green-700 text-white py-3 px-4 h-auto"
               >
-                📥 Exportar Progresso
+                <div className="text-xl mb-1">📥</div>
+                <div className="font-semibold text-sm">Exportar Progresso</div>
+                <div className="text-xs opacity-80">Salvar seus dados</div>
               </Button>
               <Button
                 onClick={handleImportData}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 h-auto"
               >
-                📤 Importar Progresso
+                <div className="text-xl mb-1">📤</div>
+                <div className="font-semibold text-sm">Importar Progresso</div>
+                <div className="text-xs opacity-80">Carregar dados salvos</div>
               </Button>
             </div>
-            <div className="pt-4 border-t border-amber-500/20">
+            <div className="pt-3 border-t border-amber-500/20">
               <Button
                 onClick={() => {
                   if (confirm("Tem certeza que deseja resetar seu perfil? Esta ação não pode ser desfeita!")) {
                     resetProfile()
                   }
                 }}
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 h-auto"
               >
-                🔄 Resetar Perfil
+                <div className="text-xl mb-1">🔄</div>
+                <div className="font-semibold text-sm">Resetar Perfil</div>
+                <div className="text-xs opacity-80">Ação irreversível</div>
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {/* Dialogs existentes */}
       <AddMangaDialog open={showAddManga} onOpenChange={setShowAddManga} />
