@@ -110,6 +110,44 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     maxStamina: staminaMax
   })
   
+  // Estado para imagem do usuário (carregar do localStorage)
+  const [userImage, setUserImage] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('userAvatar') || null
+    }
+    return null
+  })
+  
+  // Função para lidar com upload de imagem
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Verificar se é uma imagem
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const result = e.target?.result as string
+          setUserImage(result)
+          // Salvar no localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('userAvatar', result)
+          }
+        }
+        reader.readAsDataURL(file)
+      } else {
+        alert('Por favor, selecione apenas arquivos de imagem!')
+      }
+    }
+  }
+  
+  // Função para remover imagem
+  const handleRemoveImage = () => {
+    setUserImage(null)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userAvatar')
+    }
+  }
+  
   // Usar os valores persistentes
   const currentHP = editedVitals.currentHP
   const currentMP = editedVitals.currentMP
@@ -232,25 +270,49 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       )}
 
       {/* Ícone Minimizado */}
-      {isMinimized && (
-        <div className="relative">
-          <Button
-            onClick={() => setIsMinimized(false)}
-            className="w-16 h-16 bg-gradient-to-br from-slate-800 via-purple-800 to-indigo-800 border-2 border-amber-500/30 shadow-2xl shadow-purple-500/20 hover:scale-110 transition-all duration-300 rounded-full"
-            title="Abrir Painel do Personagem"
-          >
-            <div className="text-center">
-              <div className="text-2xl mb-1">⚔️</div>
-              <div className="text-xs font-bold text-amber-200">{profile.level}</div>
+        {isMinimized && (
+          <div className="relative">
+            <div className="relative">
+              <Button
+                onClick={() => setIsMinimized(false)}
+                className="w-16 h-16 bg-gradient-to-br from-slate-800 via-purple-800 to-indigo-800 border-2 border-amber-500/30 shadow-2xl shadow-purple-500/20 hover:scale-110 transition-all duration-300 rounded-full overflow-hidden p-0"
+                title="Abrir Painel do Personagem"
+              >
+                {userImage ? (
+                  <img 
+                    src={userImage} 
+                    alt="Avatar" 
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center w-full h-full flex flex-col items-center justify-center">
+                    <div className="text-2xl mb-1">⚔️</div>
+                    <div className="text-xs font-bold text-amber-200">{profile.level}</div>
+                  </div>
+                )}
+              </Button>
+              
+              {/* Botão para alterar avatar no ícone minimizado */}
+              <label className="absolute -bottom-1 -right-1 cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="avatar-upload-minimized"
+                />
+                <div className="w-5 h-5 bg-amber-600 hover:bg-amber-700 rounded-full flex items-center justify-center text-xs text-white shadow-lg hover:scale-110 transition-all duration-300" title="Alterar avatar">
+                  📷
+                </div>
+              </label>
             </div>
-          </Button>
-          
-          {/* Indicador de notificação */}
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse">
-            <div className="w-full h-full bg-red-400 rounded-full animate-ping" />
+            
+            {/* Indicador de notificação */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse">
+              <div className="w-full h-full bg-red-400 rounded-full animate-ping" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Janela Principal Flutuante */}
       {!isMinimized && (
@@ -258,16 +320,39 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         <CardContent className="p-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-lg font-bold text-amber-200 font-serif">{profile.name}</h2>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs bg-amber-600/20 text-amber-200">
-                  <Star className="w-3 h-3 mr-1" />
-                  Nível {profile.level}
-                </Badge>
-                <Badge variant="outline" className="text-xs text-amber-300">
-                  {userName}
-                </Badge>
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="avatar-upload-floating"
+                />
+                {userImage ? (
+                  <img 
+                    src={userImage} 
+                    alt="Avatar do usuário" 
+                    className="w-12 h-12 rounded-full border-2 border-amber-500/50 object-cover shadow-lg hover:border-amber-400/70 transition-all duration-300"
+                    title="Clique para alterar avatar"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full border-2 border-amber-500/50 bg-slate-700/50 flex items-center justify-center hover:border-amber-400/70 hover:bg-slate-600/50 transition-all duration-300" title="Clique para adicionar avatar">
+                    <span className="text-2xl">⚔️</span>
+                  </div>
+                )}
+              </label>
+              <div>
+                <h2 className="text-lg font-bold text-amber-200 font-serif">{profile.name}</h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs bg-amber-600/20 text-amber-200">
+                    <Star className="w-3 h-3 mr-1" />
+                    Nível {profile.level}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs text-amber-300">
+                    {userName}
+                  </Badge>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -1170,7 +1255,68 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         icon="⚙️"
         size="md"
       >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <ModalSection title="Avatar do Personagem" icon="🖼️">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              {userImage ? (
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={userImage} 
+                    alt="Avatar atual" 
+                    className="w-20 h-20 rounded-full border-2 border-amber-500/50 object-cover shadow-lg"
+                  />
+                  <div>
+                    <p className="text-amber-200 font-semibold">Avatar Atual</p>
+                    <p className="text-amber-300/80 text-sm">Imagem do seu personagem</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full border-2 border-amber-500/50 bg-slate-700/50 flex items-center justify-center">
+                    <span className="text-4xl">⚔️</span>
+                  </div>
+                  <div>
+                    <p className="text-amber-200 font-semibold">Avatar Padrão</p>
+                    <p className="text-amber-300/80 text-sm">Nenhuma imagem selecionada</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="block">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="avatar-upload"
+                />
+                <Button
+                  asChild
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <label htmlFor="avatar-upload" className="cursor-pointer flex items-center justify-center gap-2">
+                    <span className="text-lg">📷</span>
+                    {userImage ? 'Alterar Avatar' : 'Adicionar Avatar'}
+                  </label>
+                </Button>
+              </label>
+              {userImage && (
+                <Button
+                  variant="outline"
+                  onClick={handleRemoveImage}
+                  className="w-full text-red-400 border-red-400/50 hover:bg-red-400/20"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Remover Avatar
+                </Button>
+              )}
+            </div>
+          </div>
+        </ModalSection>
+
+        <ModalSection title="Gerenciamento de Dados" icon="💾">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Button
                 onClick={handleExportData}
                 className="bg-green-600 hover:bg-green-700 text-white py-3 px-4 h-auto"
@@ -1202,6 +1348,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 <div className="text-xs opacity-80">Ação irreversível</div>
               </Button>
             </div>
+        </ModalSection>
       </Modal>
 
       {/* Dialogs existentes */}
