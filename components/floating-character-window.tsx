@@ -14,6 +14,7 @@ import { AddContentDialog } from "./add-content-dialog"
 import { EditAbilityDialog } from "./edit-ability-dialog"
 import { EditItemIsekaiDialog } from "./edit-item-isekai-dialog"
 import { EditAttributesDialog } from "./edit-attributes-dialog"
+import { EditMangaDialog } from "./edit-manga-dialog"
 import { 
   Heart, 
   Droplet, 
@@ -86,6 +87,8 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [editAbilityDialogOpen, setEditAbilityDialogOpen] = useState(false)
   const [editItemDialogOpen, setEditItemDialogOpen] = useState(false)
   const [editAttributesDialogOpen, setEditAttributesDialogOpen] = useState(false)
+  const [editMangaDialogOpen, setEditMangaDialogOpen] = useState(false)
+  const [mangaToEdit, setMangaToEdit] = useState<any>(null)
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -1074,6 +1077,29 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             </Badge>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {manga.url && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => window.open(manga.url, '_blank')}
+                                className="text-white hover:bg-blue-600/30 bg-black/20 hover:scale-110 transition-all duration-200 w-8 h-8"
+                                title="Ir para o site"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setMangaToEdit(manga)
+                                setEditMangaDialogOpen(true)
+                              }}
+                              className="text-white hover:bg-amber-600/30 bg-black/20 hover:scale-110 transition-all duration-200 w-8 h-8"
+                              title="Editar mangá"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1370,6 +1396,12 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       <EditAttributesDialog
         open={editAttributesDialogOpen}
         onOpenChange={setEditAttributesDialogOpen}
+      />
+      
+      <EditMangaDialog
+        open={editMangaDialogOpen}
+        onOpenChange={setEditMangaDialogOpen}
+        manga={mangaToEdit}
       />
     </div>
   )

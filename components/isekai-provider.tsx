@@ -238,10 +238,16 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
       totalMangasRead: prev.totalMangasRead + 1,
     }))
 
+    // Calcular XP baseado no episódio atual (10 XP por episódio)
+    const xpGained = manga.currentEpisode ? manga.currentEpisode * 10 : 0
+    if (xpGained > 0) {
+      addExperience(xpGained)
+    }
+
     addNotification({
       type: "success",
       title: "📚 Manga Adicionado!",
-      description: `${manga.title} foi adicionado à sua biblioteca.`,
+      description: `${manga.title} foi adicionado à sua biblioteca.${xpGained > 0 ? ` +${xpGained} XP` : ''}`,
     })
   }
 
@@ -477,17 +483,83 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     })
   }
 
+  const removeMangaExperience = (amount: number) => {
+    setProfile((prev) => {
+      const initialLevel = prev.level
+      let currentLevel = prev.level
+      let currentXp = prev.experience
+      let xpToRemove = amount
+      
+      // Primeiro, remove do XP atual
+      if (currentXp >= xpToRemove) {
+        currentXp -= xpToRemove
+        xpToRemove = 0
+      } else {
+        xpToRemove -= currentXp
+        currentXp = 0
+      }
+      
+      // Se ainda há XP para remover, começar a remover níveis
+      while (xpToRemove > 0 && currentLevel > 1) {
+        currentLevel--
+        const xpForPreviousLevel = currentLevel * 100
+        
+        if (xpToRemove >= xpForPreviousLevel) {
+          xpToRemove -= xpForPreviousLevel
+        } else {
+          // Coloca o XP restante no nível anterior
+          currentXp = xpForPreviousLevel - xpToRemove
+          xpToRemove = 0
+        }
+      }
+      
+      const levelsLost = initialLevel - currentLevel
+      
+      // Mostrar notificação se perdeu níveis
+      if (levelsLost > 0) {
+        setTimeout(() => {
+          toast({
+            title: "Level Down!",
+            description: `Você regrediu ${levelsLost} nível(is)! Agora está no nível ${currentLevel}!`,
+          })
+        }, 0)
+      }
+      
+      return {
+        ...prev,
+        level: currentLevel,
+        experience: currentXp,
+      }
+    })
+  }
+
   const removeManga = (id: string) => {
+    // Encontrar o mangá antes de removê-lo para calcular o XP perdido
+    const mangaToRemove = mangas.find((m) => m.id === id)
+    const xpLost = mangaToRemove?.currentEpisode ? mangaToRemove.currentEpisode * 10 : 0
+    
     setMangas((prev) => prev.filter((m) => m.id !== id))
     setAbilities((prev) => prev.filter((a) => !a.sources.includes(id)))
     setItems((prev) => prev.filter((i) => i.source !== id))
     setTitles((prev) => prev.filter((t) => t.source !== id))
+
+    // Remover XP baseado no episódio atual do mangá
+    if (xpLost > 0) {
+      removeMangaExperience(xpLost)
+    }
 
     // Also ensure derived totals reflect removal
     setProfile((prev) => ({
       ...prev,
       totalMangasRead: Math.max(0, prev.totalMangasRead - 1),
     }))
+
+    // Notificação sobre a remoção e perda de XP
+    addNotification({
+      type: "warning",
+      title: "🗑️ Mangá Removido!",
+      description: `${mangaToRemove?.title || 'Mangá'} foi removido da biblioteca.${xpLost > 0 ? ` -${xpLost} XP` : ''}`,
+    })
   }
 
   const updateMangaEpisode = (mangaId: string, episode: number) => {

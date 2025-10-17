@@ -9,20 +9,33 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useIsekai } from "./isekai-provider"
 import { Upload } from "lucide-react"
+import type { Manga } from "@/lib/isekai-types"
 
-interface AddMangaDialogProps {
+interface EditMangaDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  manga: Manga | null
 }
 
-export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
-  const { addManga } = useIsekai()
+export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogProps) {
+  const { mangas, setMangas } = useIsekai()
   const [title, setTitle] = useState("")
   const [type, setType] = useState<"manga" | "manhwa" | "manhua">("manga")
   const [coverImage, setCoverImage] = useState("")
   const [url, setUrl] = useState("")
   const [currentEpisode, setCurrentEpisode] = useState<number>(0)
   const [isAnimating, setIsAnimating] = useState(false)
+
+  // Atualizar os campos quando o mangá mudar
+  useEffect(() => {
+    if (manga) {
+      setTitle(manga.title)
+      setType(manga.type)
+      setCoverImage(manga.coverImage || "")
+      setUrl(manga.url || "")
+      setCurrentEpisode(manga.currentEpisode || 0)
+    }
+  }, [manga])
 
   useEffect(() => {
     if (open) {
@@ -34,26 +47,28 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || !manga) return
 
     // Animação de fechamento
     setIsAnimating(false)
     
     setTimeout(() => {
-      addManga({
-        title: title.trim(),
-        type,
-        abilities: [],
-        coverImage: coverImage || undefined,
-        url: url || undefined,
-        currentEpisode: currentEpisode > 0 ? currentEpisode : undefined,
-      })
+      // Atualizar o mangá na lista
+      setMangas((prev) =>
+        prev.map((m) =>
+          m.id === manga.id
+            ? {
+                ...m,
+                title: title.trim(),
+                type,
+                coverImage: coverImage || undefined,
+                url: url || undefined,
+                currentEpisode: currentEpisode > 0 ? currentEpisode : undefined,
+              }
+            : m
+        )
+      )
 
-      setTitle("")
-      setType("manga")
-      setCoverImage("")
-      setUrl("")
-      setCurrentEpisode(0)
       onOpenChange(false)
     }, 300)
   }
@@ -72,8 +87,8 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
         <div className={`absolute inset-0 bg-gradient-to-br from-amber-500/10 via-purple-500/5 to-transparent transition-all duration-500 ${isAnimating ? 'opacity-100' : 'opacity-0'}`} />
         
         <DialogHeader className="relative z-10">
-          <DialogTitle className="text-amber-200 font-serif">📚 Adicionar Manga/Manhwa</DialogTitle>
-          <DialogDescription className="text-amber-300/80 font-serif">Adicione um manga ou manhwa que você leu para ganhar habilidades</DialogDescription>
+          <DialogTitle className="text-amber-200 font-serif">✏️ Editar Manga/Manhwa</DialogTitle>
+          <DialogDescription className="text-amber-300/80 font-serif">Edite as informações do seu mangá</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
           <div className="space-y-2">
@@ -110,9 +125,6 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
                 placeholder="https://exemplo.com/capa.jpg"
                 className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
               />
-              <Button type="button" variant="outline" size="icon" className="border-amber-500/30 text-amber-200 hover:bg-amber-500/20 hover:scale-105 transition-all duration-200">
-                <Upload className="w-4 h-4" />
-              </Button>
             </div>
           </div>
           <div className="space-y-2">
@@ -136,14 +148,9 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
               placeholder="0"
               className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
             />
-            {currentEpisode > 0 && (
-              <p className="text-amber-300/70 text-sm font-serif">
-                ✨ Você ganhará {currentEpisode * 10} XP por este mangá!
-              </p>
-            )}
           </div>
           <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-serif hover:scale-105 transition-all duration-200 hover:shadow-lg hover:shadow-amber-500/30">
-            ✨ Adicionar
+            ✨ Salvar Alterações
           </Button>
         </form>
       </DialogContent>
