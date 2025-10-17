@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -38,7 +39,8 @@ import {
   LogOut, 
   User,
   Trophy,
-  X
+  X,
+  Search
 } from "lucide-react"
 import Image from "next/image"
 
@@ -89,6 +91,8 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [editAttributesDialogOpen, setEditAttributesDialogOpen] = useState(false)
   const [editMangaDialogOpen, setEditMangaDialogOpen] = useState(false)
   const [mangaToEdit, setMangaToEdit] = useState<any>(null)
+  const [mangaSearchFilter, setMangaSearchFilter] = useState("")
+  const [mangaTypeFilter, setMangaTypeFilter] = useState<"all" | "manga" | "manhwa" | "manhua">("all")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -1031,15 +1035,81 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         icon="📚"
         size="lg"
       >
-            <div className="flex justify-between items-center">
-              <h3 className="text-amber-200 font-serif">Minha Biblioteca</h3>
-              <Button 
-                onClick={() => setShowAddManga(true)} 
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Manga
-              </Button>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-amber-200 font-serif">Minha Biblioteca</h3>
+                <Button 
+                  onClick={() => setShowAddManga(true)} 
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Manga
+                </Button>
+              </div>
+              
+              {/* Campo de busca */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-400 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar mangás por nome..."
+                  value={mangaSearchFilter}
+                  onChange={(e) => setMangaSearchFilter(e.target.value)}
+                  className="pl-10 bg-slate-700/50 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+                />
+              </div>
+              
+              {/* Filtros por tipo */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={mangaTypeFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaTypeFilter("all")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaTypeFilter === "all" 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white" 
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+                  } transition-all duration-200`}
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={mangaTypeFilter === "manga" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaTypeFilter("manga")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaTypeFilter === "manga" 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white" 
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+                  } transition-all duration-200`}
+                >
+                  📖 Mangás
+                </Button>
+                <Button
+                  variant={mangaTypeFilter === "manhwa" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaTypeFilter("manhwa")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaTypeFilter === "manhwa" 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white" 
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+                  } transition-all duration-200`}
+                >
+                  🇰🇷 Manhwas
+                </Button>
+                <Button
+                  variant={mangaTypeFilter === "manhua" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaTypeFilter("manhua")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaTypeFilter === "manhua" 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white" 
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+                  } transition-all duration-200`}
+                >
+                  🇨🇳 Manhuas
+                </Button>
+              </div>
             </div>
             {mangas.length === 0 ? (
               <div className="text-center text-amber-300/60 py-8">
@@ -1048,8 +1118,31 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 <p className="text-sm">Comece adicionando os mangás que você leu!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mangas.map((manga) => (
+              <>
+                {mangas.filter((manga) => 
+                  manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase()) &&
+                  (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
+                ).length === 0 && (mangaSearchFilter || mangaTypeFilter !== "all") ? (
+                  <div className="text-center text-amber-300/60 py-8">
+                    <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>
+                      {mangaSearchFilter && mangaTypeFilter !== "all" 
+                        ? `Nenhum ${mangaTypeFilter} encontrado para "${mangaSearchFilter}"`
+                        : mangaSearchFilter 
+                        ? `Nenhum mangá encontrado para "${mangaSearchFilter}"`
+                        : `Nenhum ${mangaTypeFilter} encontrado`
+                      }
+                    </p>
+                    <p className="text-sm">Tente ajustar os filtros ou buscar por outro termo</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {mangas
+                      .filter((manga) => 
+                        manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase()) &&
+                        (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
+                      )
+                      .map((manga) => (
                   <Card 
                     key={manga.id} 
                     className="relative overflow-hidden bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300 cursor-pointer group"
@@ -1159,6 +1252,8 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                   </Card>
                 ))}
               </div>
+                )}
+              </>
             )}
       </Modal>
 

@@ -16,13 +16,14 @@ interface AddMangaDialogProps {
 }
 
 export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
-  const { addManga } = useIsekai()
+  const { addManga, mangas } = useIsekai()
   const [title, setTitle] = useState("")
   const [type, setType] = useState<"manga" | "manhwa" | "manhua">("manga")
   const [coverImage, setCoverImage] = useState("")
   const [url, setUrl] = useState("")
   const [currentEpisode, setCurrentEpisode] = useState<number>(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [duplicateError, setDuplicateError] = useState("")
 
   useEffect(() => {
     if (open) {
@@ -32,9 +33,29 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
     }
   }, [open])
 
+  // Limpar erro quando o título muda
+  useEffect(() => {
+    if (duplicateError) {
+      setDuplicateError("")
+    }
+  }, [title])
+
+  // Função para verificar se já existe um mangá com o mesmo nome
+  const checkDuplicate = (mangaTitle: string): boolean => {
+    return mangas.some(manga => 
+      manga.title.toLowerCase().trim() === mangaTitle.toLowerCase().trim()
+    )
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
+
+    // Verificar se já existe um mangá com o mesmo nome
+    if (checkDuplicate(title.trim())) {
+      setDuplicateError(`"${title.trim()}" já existe na sua biblioteca!`)
+      return
+    }
 
     // Animação de fechamento
     setIsAnimating(false)
@@ -54,12 +75,14 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
       setCoverImage("")
       setUrl("")
       setCurrentEpisode(0)
+      setDuplicateError("")
       onOpenChange(false)
     }, 300)
   }
 
   const handleClose = () => {
     setIsAnimating(false)
+    setDuplicateError("")
     setTimeout(() => {
       onOpenChange(false)
     }, 300)
@@ -84,8 +107,15 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Solo Leveling"
               required
-              className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+              className={`bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200 ${
+                duplicateError ? 'border-red-500 focus:border-red-400 focus:ring-red-400/20' : ''
+              }`}
             />
+            {duplicateError && (
+              <p className="text-red-400 text-sm font-serif flex items-center gap-1">
+                ⚠️ {duplicateError}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="type" className="text-amber-200 font-serif">Tipo</Label>

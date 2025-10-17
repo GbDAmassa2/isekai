@@ -25,6 +25,7 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
   const [url, setUrl] = useState("")
   const [currentEpisode, setCurrentEpisode] = useState<number>(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [duplicateError, setDuplicateError] = useState("")
 
   // Atualizar os campos quando o mangá mudar
   useEffect(() => {
@@ -45,9 +46,30 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
     }
   }, [open])
 
+  // Limpar erro quando o título muda
+  useEffect(() => {
+    if (duplicateError) {
+      setDuplicateError("")
+    }
+  }, [title])
+
+  // Função para verificar se já existe um mangá com o mesmo nome (excluindo o atual)
+  const checkDuplicate = (mangaTitle: string): boolean => {
+    return mangas.some(m => 
+      m.id !== manga?.id && 
+      m.title.toLowerCase().trim() === mangaTitle.toLowerCase().trim()
+    )
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !manga) return
+
+    // Verificar se já existe um mangá com o mesmo nome (excluindo o atual)
+    if (checkDuplicate(title.trim())) {
+      setDuplicateError(`"${title.trim()}" já existe na sua biblioteca!`)
+      return
+    }
 
     // Animação de fechamento
     setIsAnimating(false)
@@ -69,12 +91,14 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
         )
       )
 
+      setDuplicateError("")
       onOpenChange(false)
     }, 300)
   }
 
   const handleClose = () => {
     setIsAnimating(false)
+    setDuplicateError("")
     setTimeout(() => {
       onOpenChange(false)
     }, 300)
@@ -99,8 +123,15 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex: Solo Leveling"
               required
-              className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+              className={`bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200 ${
+                duplicateError ? 'border-red-500 focus:border-red-400 focus:ring-red-400/20' : ''
+              }`}
             />
+            {duplicateError && (
+              <p className="text-red-400 text-sm font-serif flex items-center gap-1">
+                ⚠️ {duplicateError}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="type" className="text-amber-200 font-serif">Tipo</Label>
