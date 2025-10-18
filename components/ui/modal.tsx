@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface ModalProps {
   isOpen: boolean
@@ -21,6 +22,7 @@ export function Modal({
   size = 'lg',
   className = ''
 }: ModalProps) {
+  const isMobile = useIsMobile()
   // Fechar modal com tecla Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -45,11 +47,11 @@ export function Modal({
   if (!isOpen) return null
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-2xl',
-    lg: 'max-w-4xl',
-    xl: 'max-w-6xl',
-    full: 'max-w-7xl'
+    sm: isMobile ? 'max-w-full' : 'max-w-md',
+    md: isMobile ? 'max-w-full' : 'max-w-2xl',
+    lg: isMobile ? 'max-w-full' : 'max-w-4xl',
+    xl: isMobile ? 'max-w-full' : 'max-w-6xl',
+    full: 'max-w-full'
   }
 
   return (
@@ -60,16 +62,16 @@ export function Modal({
       >
         {/* Modal Header */}
         <div className="modal-header">
-          <div className="flex items-center gap-3">
-            {icon && <span className="text-2xl">{icon}</span>}
-            <h3 className="text-xl font-bold text-amber-200 font-serif">{title}</h3>
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            {icon && <span className={`${isMobile ? 'text-xl' : 'text-2xl'} flex-shrink-0`}>{icon}</span>}
+            <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-amber-200 font-serif truncate`}>{title}</h3>
           </div>
           <button 
-            className="modal-close-btn"
+            className={`modal-close-btn ${isMobile ? 'w-8 h-8 ml-2 flex-shrink-0' : ''}`}
             onClick={onClose}
             aria-label="Fechar modal"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>

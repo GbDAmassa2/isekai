@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Modal, ModalSection, ModalGrid, ModalCard } from "@/components/ui/modal"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useIsekai } from "./isekai-provider"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { AddMangaDialog } from "./add-manga-dialog"
 import { AddContentDialog } from "./add-content-dialog"
 import { EditAbilityDialog } from "./edit-ability-dialog"
@@ -49,6 +50,8 @@ interface FloatingCharacterWindowProps {
 }
 
 export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowProps) {
+  const isMobile = useIsMobile()
+  
   const { 
     profile, 
     mangas, 
@@ -1036,11 +1039,11 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         size="lg"
       >
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className={`${isMobile ? 'flex-col gap-3' : 'flex justify-between items-center'}`}>
                 <h3 className="text-amber-200 font-serif">Minha Biblioteca</h3>
                 <Button 
                   onClick={() => setShowAddManga(true)} 
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  className={`bg-amber-600 hover:bg-amber-700 text-white ${isMobile ? 'w-full' : ''}`}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Adicionar Manga
@@ -1060,7 +1063,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               </div>
               
               {/* Filtros por tipo */}
-              <div className="flex gap-2 flex-wrap">
+              <div className={`flex gap-2 ${isMobile ? 'flex-wrap justify-center' : 'flex-wrap'}`}>
                 <Button
                   variant={mangaTypeFilter === "all" ? "default" : "outline"}
                   size="sm"
@@ -1136,7 +1139,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                     <p className="text-sm">Tente ajustar os filtros ou buscar por outro termo</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                     {mangas
                       .filter((manga) => 
                         manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase()) &&
@@ -1163,22 +1166,22 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                     <CardContent className="relative z-20 p-4 h-full flex flex-col justify-between min-h-[200px]">
                       <div>
                         <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-bold text-white mb-1">{manga.title}</h4>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-white mb-1 truncate">{manga.title}</h4>
                             <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
                               {manga.type}
                             </Badge>
                           </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className={`flex gap-1 flex-shrink-0 ml-2 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300`}>
                             {manga.url && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => window.open(manga.url, '_blank')}
-                                className="text-white hover:bg-blue-600/30 bg-black/20 hover:scale-110 transition-all duration-200 w-8 h-8"
+                                className={`text-white hover:bg-blue-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                                 title="Ir para o site"
                               >
-                                <ExternalLink className="w-3 h-3" />
+                                <ExternalLink className={isMobile ? 'w-3 h-3' : 'w-3 h-3'} />
                               </Button>
                             )}
                             <Button
@@ -1188,25 +1191,25 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                                 setMangaToEdit(manga)
                                 setEditMangaDialogOpen(true)
                               }}
-                              className="text-white hover:bg-amber-600/30 bg-black/20 hover:scale-110 transition-all duration-200 w-8 h-8"
+                              className={`text-white hover:bg-amber-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                               title="Editar mangá"
                             >
-                              <Edit className="w-3 h-3" />
+                              <Edit className={isMobile ? 'w-3 h-3' : 'w-3 h-3'} />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => removeManga(manga.id)}
-                              className="text-white hover:bg-red-600/30 bg-black/20 hover:scale-110 transition-all duration-200 w-8 h-8"
+                              className={`text-white hover:bg-red-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                               title="Apagar mangá"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className={isMobile ? 'w-3 h-3' : 'w-3 h-3'} />
                             </Button>
                           </div>
                         </div>
                         
                         <div className="mb-3">
-                          <div className="flex items-center justify-between bg-white/10 rounded-lg p-2 border border-white/20">
+                          <div className={`${isMobile ? 'flex-col gap-2' : 'flex items-center justify-between'} bg-white/10 rounded-lg p-2 border border-white/20`}>
                             <div className="flex items-center gap-2">
                               <Hash className="w-3 h-3 text-amber-300" />
                               <span className="text-xs text-white/90">Episódio:</span>
@@ -1214,24 +1217,24 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                                 {manga.currentEpisode ?? 0}
                               </span>
                             </div>
-                            <div className="flex gap-1">
+                            <div className={`flex gap-1 ${isMobile ? 'justify-center w-full' : ''}`}>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => decrementEpisode(manga.id)}
-                                className="w-6 h-6 text-white hover:bg-red-500/30 hover:scale-110 transition-all duration-200"
+                                className={`${isMobile ? 'w-8 h-8' : 'w-6 h-6'} text-white hover:bg-red-500/30 hover:scale-110 transition-all duration-200`}
                                 title="Episódio anterior"
                               >
-                                <ChevronDown className="w-3 h-3" />
+                                <ChevronDown className={isMobile ? 'w-4 h-4' : 'w-3 h-3'} />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => incrementEpisode(manga.id)}
-                                className="w-6 h-6 text-white hover:bg-green-500/30 hover:scale-110 transition-all duration-200"
+                                className={`${isMobile ? 'w-8 h-8' : 'w-6 h-6'} text-white hover:bg-green-500/30 hover:scale-110 transition-all duration-200`}
                                 title="Próximo episódio"
                               >
-                                <ChevronUp className="w-3 h-3" />
+                                <ChevronUp className={isMobile ? 'w-4 h-4' : 'w-3 h-3'} />
                               </Button>
                             </div>
                           </div>
