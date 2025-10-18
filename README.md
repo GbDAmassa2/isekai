@@ -1,153 +1,145 @@
-# 🗡️ Sistema Isekai
+# 🎮 Isekai - RPG Baseado em Mangás
 
-Uma interface medieval fantasia inspirada em sistemas de jogos de anime/mangá do gênero isekai, com animações dinâmicas e feedback visual imediato.
+Uma aplicação web que transforma sua leitura de mangás/manhwas/manhuas em uma experiência de RPG, onde você ganha XP, sobe de nível e desenvolve habilidades baseadas no conteúdo que consome.
 
-## ✨ Características
+![Isekai Dashboard](https://img.shields.io/badge/Status-Active-brightgreen)
+![Next.js](https://img.shields.io/badge/Next.js-15.2.4-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.0-38B2AC)
 
-### 🎮 Sistema de RPG Completo
-- **Perfil de Personagem**: Nível, experiência e atributos dinâmicos
-- **Biblioteca de Mangás**: Organize mangás, manhwas e manhuas lidos
-- **Sistema de Habilidades**: Adicione habilidades com efeitos em atributos
-- **Inventário**: Gerencie itens com diferentes raridades e efeitos
-- **Sistema de Títulos**: Conquiste títulos com bônus especiais
+## ✨ Funcionalidades Principais
 
-### 🎨 Interface Medieval Fantasia
-- **Tema Medieval**: Design inspirado em RPGs medievais com elementos dourados
-- **Animações Fluidas**: Transições suaves e efeitos visuais dinâmicos
-- **Background Animado**: Partículas flutuantes e efeitos de energia cósmica
-- **Feedback Tátil**: Cada interação tem resposta visual imediata
+### 🎯 Sistema de Progressão
+- **Sistema de Níveis**: Ganhe XP baseado nos capítulos lidos
+- **Atributos**: Força, Agilidade, Inteligência, Vitalidade, Sorte
+- **Regressão Inteligente**: Perde XP e níveis ao excluir mangás
 
-### 🚀 Funcionalidades Avançadas
-- **Sistema de XP**: Ganhe experiência lendo capítulos ou completando leituras
-- **Sistema de Habilidades**: Cada habilidade é única e individual
-- **Atributos Customizáveis**: Adicione novos atributos personalizados
-- **Links Diretos**: Acesse sites de mangás diretamente dos cards
-- **Exportar/Importar**: Backup completo dos dados
-- **Notificações Animadas**: Sistema de notificações com efeitos visuais
+### 📚 Biblioteca de Mangás
+- **Tipos Suportados**: Mangás, Manhwas, Manhuas
+- **Busca Inteligente**: Filtre por nome em tempo real
+- **Filtros por Tipo**: Botões para organizar por categoria
+- **Validação de Duplicatas**: Impede obras repetidas
+- **Controle de Episódios**: Gerencie seu progresso de leitura
 
-## 🛠️ Tecnologias
+### ⚡ Sistema de Habilidades
+- **Habilidades Baseadas em Mangás**: Cada habilidade tem fonte específica
+- **CRUD Completo**: Adicionar, editar e excluir habilidades
+- **Categorização**: Organize por fonte de origem
 
-- **Next.js 14** - Framework React com App Router
-- **TypeScript** - Tipagem estática
-- **Tailwind CSS** - Estilização utilitária
-- **Lucide React** - Ícones modernos
-- **LocalStorage** - Persistência de dados
-- **Context API** - Gerenciamento de estado
+### 🎒 Inventário e Itens
+- **Categorias**: Armas, Armaduras, Acessórios, Consumíveis
+- **Sistema de Equipamento**: Equipe/desequipe itens
+- **Gerenciamento Completo**: Adicionar, editar e excluir
 
-## 🎯 Como Usar
+### 🏆 Títulos Honoríficos
+- **Conquistas**: Títulos baseados em seu progresso
+- **Fonte Específica**: Títulos podem vir de mangás específicos
 
-### Instalação
+## 🚀 Tecnologias
+
+- **Frontend**: Next.js 15.2.4 + React
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Autenticação**: NextAuth.js
+- **Linguagem**: TypeScript
+- **Estado**: React Context API
+
+## 📱 Interface
+
+- **Design Responsivo**: Mobile-first approach
+- **Tema Escuro**: Cores âmbar/ouro com fundo slate
+- **Animações Suaves**: Transições e efeitos visuais
+- **Feedback Visual**: Notificações e animações de XP
+
+## 🛠️ Instalação
+
 ```bash
+# Clone o repositório
+git clone https://github.com/GbDAmassa2/isekai.git
+
+# Instale as dependências
 npm install
-# ou
-pnpm install
-# ou
-yarn install
-```
 
-### Sistema de Usuário Simples
-O sistema agora usa apenas um nome de usuário:
-1. **Primeira vez**: Digite seu nome na tela inicial
-2. **Progresso**: Seus dados são salvos localmente no navegador
-3. **Exportar/Importar**: Use os botões no dashboard para backup
-4. **Arquivo JSON**: O progresso é exportado como arquivo para compartilhar
+# Configure as variáveis de ambiente
+cp env.example .env.local
 
-### Desenvolvimento
-```bash
+# Execute o servidor de desenvolvimento
 npm run dev
-```
-
-### Build
-```bash
-npm run build
-```
-
-## 📱 Funcionalidades Principais
-
-### 1. **Sistema de Experiência**
-- Ganhe XP lendo capítulos (+10 XP) ou completando leituras (+1000 XP)
-- Sistema de níveis com progressão automática
-- Barra de experiência com animações de energia
-
-### 2. **Gerenciamento de Conteúdo**
-- Adicione mangás com capas e links diretos
-- Crie habilidades com efeitos em atributos
-- Gerencie inventário com itens de diferentes raridades
-- Conquiste títulos com bônus especiais
-
-### 3. **Sistema de Atributos**
-- Atributos base: Força, Agilidade, Inteligência, Vitalidade, Sorte
-- Atributos customizáveis adicionáveis pelo usuário
-- Cálculo automático baseado em habilidades, itens e títulos
-- Edição manual de valores com reset automático
-
-### 4. **Interface Animada**
-- Modais com efeitos de desdobramento
-- Transições de abas com deslizamento
-- Notificações com animações de entrada/saída
-- Background com partículas e efeitos de energia
-
-## 🎨 Temas e Estilos
-
-O projeto utiliza um tema medieval fantasia com:
-- **Cores**: Dourado (amber), Roxo (purple), Azul índigo (indigo)
-- **Tipografia**: Fontes serifadas para aspecto medieval
-- **Efeitos**: Sombras, brilhos e gradientes
-- **Animações**: Transições suaves e efeitos de hover
-
-## 📊 Estrutura do Projeto
-
-```
-├── app/                    # App Router do Next.js
-├── components/             # Componentes React
-│   ├── ui/                # Componentes de UI base
-│   └── *.tsx              # Componentes específicos
-├── lib/                   # Utilitários e tipos
-├── hooks/                 # Hooks customizados
-├── public/                # Arquivos estáticos
-└── styles/                # Estilos globais
 ```
 
 ## 🔧 Configuração
 
-### Variáveis de Ambiente
-Crie um arquivo `.env.local` se necessário:
+Crie um arquivo `.env.local` com:
+
 ```env
-# Adicione variáveis de ambiente aqui
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key
 ```
 
-### Personalização
-- Modifique `lib/isekai-types.ts` para alterar tipos
-- Ajuste `components/isekai-provider.tsx` para lógica de negócio
-- Customize `app/globals.css` para estilos globais
+## 📊 Como Funciona
 
-## 🚀 Deploy
+1. **Adicione Mangás**: Registre as obras que você leu
+2. **Ganhe XP**: Cada capítulo lido = 10 XP
+3. **Suba de Nível**: XP necessário = Nível × 100
+4. **Desenvolva Habilidades**: Crie habilidades baseadas nos mangás
+5. **Equipe Itens**: Gerencie seu inventário
+6. **Conquiste Títulos**: Ganhe reconhecimento por seu progresso
 
-### Vercel (Recomendado)
-```bash
-npm run build
-vercel --prod
-```
+## 🎨 Screenshots
 
-### Outras Plataformas
-O projeto é compatível com qualquer plataforma que suporte Next.js.
+### Dashboard Principal
+- Interface central com personagem e estatísticas
+- Sistema de tabs para diferentes seções
+- Animações de XP e level up
 
-## 📝 Licença
+### Biblioteca de Mangás
+- Grid responsivo com cards informativos
+- Busca e filtros em tempo real
+- Ações rápidas (editar, excluir, ir ao site)
 
-Este projeto é de código aberto e está disponível sob a licença MIT.
+### Sistema de Habilidades
+- Criação de habilidades personalizadas
+- Vinculação com mangás específicos
+- Gerenciamento completo
+
+## 🔐 Autenticação
+
+- **Login/Registro**: Sistema completo com NextAuth.js
+- **Proteção de Rotas**: Dashboard protegido por autenticação
+- **Sessões Seguras**: Gerenciamento robusto de sessões
+
+## 📈 Roadmap
+
+### Próximas Funcionalidades
+- [ ] Sistema de conquistas/achievements
+- [ ] Estatísticas avançadas de leitura
+- [ ] Sistema de recomendações
+- [ ] Exportação/importação de dados
+- [ ] Modo offline com PWA
+- [ ] Sistema de amigos/ranking
 
 ## 🤝 Contribuição
 
-Contribuições são bem-vindas! Sinta-se à vontade para:
-- Reportar bugs
-- Sugerir novas funcionalidades
-- Enviar pull requests
-- Melhorar a documentação
+Contribuições são bem-vindas! Por favor:
 
-## 📞 Contato
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
 
-Para dúvidas ou sugestões, entre em contato através do GitHub.
+## 📝 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+
+## 👨‍💻 Desenvolvedor
+
+**Gabriel** - [@GbDAmassa2](https://github.com/GbDAmassa2)
+
+## 📞 Suporte
+
+- **Issues**: [GitHub Issues](https://github.com/GbDAmassa2/isekai/issues)
+- **Documentação**: Veja `DOCUMENTATION.md` para detalhes completos
 
 ---
 
-**Desenvolvido com ❤️ para a comunidade de fãs de isekai e RPGs medievais!**
+⭐ **Se este projeto te ajudou, considere dar uma estrela!**

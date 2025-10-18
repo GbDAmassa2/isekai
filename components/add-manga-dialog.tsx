@@ -47,6 +47,7 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
     )
   }
 
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
@@ -176,6 +177,7 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
             ✨ Adicionar
           </Button>
         </form>
+
       </DialogContent>
     </Dialog>
   )

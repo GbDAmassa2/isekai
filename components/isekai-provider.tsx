@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 import type { Manga, Ability, Item, Title, UserProfile } from "@/lib/isekai-types"
 import { calculateTotalAttributes } from "@/lib/isekai-types"
 import { useToast } from "@/hooks/use-toast"
 import { NotificationManager } from "./animated-notification"
+import { getMangaRewards, getMangaRewardsByTitle, getRewardId, getRewardsToRemove, getPendingRewards, getAllMangaRewards, getAllMangaRewardsByTitle, type MangaReward } from "@/lib/manga-rewards"
 
 interface Notification {
   id: string
@@ -21,14 +22,15 @@ interface IsekaiContextType {
   items: Item[]
   titles: Title[]
   notifications: Notification[]
+  collectedRewards: string[]
   addManga: (manga: Omit<Manga, "id" | "dateAdded">) => void
-  addAbility: (ability: Omit<Ability, "id" | "level" | "sources">, mangaId: string) => void
+  addAbility: (ability: Omit<Ability, "id" | "level" | "sources">, mangaId: string, silent?: boolean) => void
   editAbility: (abilityId: string, updatedAbility: Partial<Ability>) => void
   deleteAbility: (abilityId: string) => void
-  addItem: (item: Omit<Item, "id">, mangaId: string) => void
+  addItem: (item: Omit<Item, "id">, mangaId: string, silent?: boolean) => void
   editItem: (itemId: string, updatedItem: Partial<Item>) => void
   deleteItem: (itemId: string) => void
-  addTitle: (title: Omit<Title, "id">, mangaId: string) => void
+  addTitle: (title: Omit<Title, "id">, mangaId: string, silent?: boolean) => void
   editTitle: (titleId: string, updatedTitle: Partial<Title>) => void
   deleteTitle: (titleId: string) => void
   toggleTitle: (titleId: string) => void
@@ -48,6 +50,8 @@ interface IsekaiContextType {
   importData: (json: string) => boolean
   addNotification: (notification: Omit<Notification, "id">) => void
   removeNotification: (id: string) => void
+  clearCollectedRewards: () => void
+  syncMangaRewards: (mangaId: string) => void
 }
 
 const IsekaiContext = createContext<IsekaiContextType | undefined>(undefined)
@@ -60,6 +64,16 @@ interface IsekaiProviderProps {
 export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  
+  // Contador para garantir IDs únicos mesmo em execuções simultâneas
+  const idCounter = useRef(0)
+  
+  // Função para gerar IDs únicos mais robustos
+  const generateUniqueId = () => {
+    idCounter.current += 1
+    return `${Date.now()}-${idCounter.current}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 9)}`
+  }
+  
   const [profile, setProfile] = useState<UserProfile>({
     name: userName,
     level: 1,
@@ -82,6 +96,9 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   const [abilities, setAbilities] = useState<Ability[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [titles, setTitles] = useState<Title[]>([])
+  const [collectedRewards, setCollectedRewards] = useState<string[]>([])
+  const [syncingRewards, setSyncingRewards] = useState<Set<string>>(new Set())
+  const [lastNotificationTime, setLastNotificationTime] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const userKey = `isekai-data-${userName}`
@@ -93,10 +110,35 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         if (data.profile) {
           setProfile({ ...data.profile, name: userName })
         }
-        if (data.mangas) setMangas(data.mangas)
-        if (data.abilities) setAbilities(data.abilities)
-        if (data.items) setItems(data.items)
-        if (data.titles) setTitles(data.titles)
+        if (data.mangas) {
+          // Remover duplicatas por ID ao carregar
+          const uniqueMangas = data.mangas.filter((manga: Manga, index: number, self: Manga[]) => 
+            index === self.findIndex(m => m.id === manga.id)
+          )
+          setMangas(uniqueMangas)
+        }
+        if (data.abilities) {
+          // Remover duplicatas por ID ao carregar
+          const uniqueAbilities = data.abilities.filter((ability: Ability, index: number, self: Ability[]) => 
+            index === self.findIndex(a => a.id === ability.id)
+          )
+          setAbilities(uniqueAbilities)
+        }
+        if (data.items) {
+          // Remover duplicatas por ID ao carregar
+          const uniqueItems = data.items.filter((item: Item, index: number, self: Item[]) => 
+            index === self.findIndex(i => i.id === item.id)
+          )
+          setItems(uniqueItems)
+        }
+        if (data.titles) {
+          // Remover duplicatas por ID ao carregar
+          const uniqueTitles = data.titles.filter((title: Title, index: number, self: Title[]) => 
+            index === self.findIndex(t => t.id === title.id)
+          )
+          setTitles(uniqueTitles)
+        }
+        if (data.collectedRewards) setCollectedRewards(data.collectedRewards)
       } catch (error) {
         console.error("Erro ao carregar dados do usuário:", error)
       }
@@ -121,11 +163,12 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         mangas,
         abilities,
         items,
-        titles
+        titles,
+        collectedRewards
       }
       localStorage.setItem(userKey, JSON.stringify(data))
     }
-  }, [profile, mangas, abilities, items, titles, userName])
+  }, [profile, mangas, abilities, items, titles, collectedRewards, userName])
 
 
   useEffect(() => {
@@ -226,13 +269,21 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   }, [profile.experience, profile.level, toast])
 
   const addManga = (manga: Omit<Manga, "id" | "dateAdded">) => {
+    const newId = generateUniqueId()
     const newManga: Manga = {
       ...manga,
-      id: Date.now().toString(),
+      id: newId,
       dateAdded: new Date().toISOString(),
     }
 
-    setMangas((prev) => [...prev, newManga])
+    setMangas((prev) => {
+      // Verificar se não há ID duplicado
+      if (prev.some(m => m.id === newId)) {
+        console.warn('ID duplicado detectado para manga, regenerando...', newId)
+        newManga.id = generateUniqueId()
+      }
+      return [...prev, newManga]
+    })
     setProfile((prev) => ({
       ...prev,
       totalMangasRead: prev.totalMangasRead + 1,
@@ -251,51 +302,92 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     })
   }
 
-  const addAbility = (ability: Omit<Ability, "id" | "level" | "sources">, mangaId: string) => {
-    const newAbility: Ability = {
-      ...ability,
-      id: Date.now().toString(),
-      level: 1,
-      sources: [mangaId],
-    }
-
-    setAbilities((prev) => [...prev, newAbility])
-
-    toast({
-      title: "Nova Habilidade!",
-      description: `Você adquiriu ${ability.name}!`,
+  const addAbility = (ability: Omit<Ability, "id" | "level" | "sources">, mangaId: string, silent: boolean = false) => {
+    setAbilities((prev) => {
+      // Verificar se a habilidade já existe (mesmo nome e mesma fonte)
+      const alreadyExists = prev.some(existingAbility => 
+        existingAbility.name === ability.name && 
+        existingAbility.sources.includes(mangaId)
+      )
+      
+      if (alreadyExists) {
+        return prev
+      }
+      
+      const newId = generateUniqueId()
+      const newAbility: Ability = {
+        ...ability,
+        id: newId,
+        level: 1,
+        sources: [mangaId],
+      }
+      
+      // Verificar se não há ID duplicado (backup adicional)
+      if (prev.some(a => a.id === newId)) {
+        console.warn('ID duplicado detectado para habilidade, regenerando...', newId)
+        newAbility.id = generateUniqueId()
+      }
+      
+      return [...prev, newAbility]
     })
+
+    if (!silent) {
+      toast({
+        title: "Nova Habilidade!",
+        description: `Você adquiriu ${ability.name}!`,
+      })
+    }
   }
 
-  const addItem = (item: Omit<Item, "id">, mangaId: string) => {
+  const addItem = (item: Omit<Item, "id">, mangaId: string, silent: boolean = false) => {
+    const newId = generateUniqueId()
     const newItem: Item = {
       ...item,
-      id: Date.now().toString(),
+      id: newId,
       source: mangaId,
     }
 
-    setItems((prev) => [...prev, newItem])
-
-    toast({
-      title: "Novo Item!",
-      description: `Você adquiriu ${item.name}!`,
+    setItems((prev) => {
+      // Verificar se não há ID duplicado
+      if (prev.some(i => i.id === newId)) {
+        console.warn('ID duplicado detectado para item, regenerando...', newId)
+        newItem.id = generateUniqueId()
+      }
+      return [...prev, newItem]
     })
+
+    if (!silent) {
+      toast({
+        title: "Novo Item!",
+        description: `Você adquiriu ${item.name}!`,
+      })
+    }
   }
 
-  const addTitle = (title: Omit<Title, "id">, mangaId: string) => {
+  const addTitle = (title: Omit<Title, "id">, mangaId: string, silent: boolean = false) => {
+    const newId = generateUniqueId()
     const newTitle: Title = {
       ...title,
-      id: Date.now().toString(),
+      id: newId,
       source: mangaId,
       active: true,
     }
 
-    setTitles((prev) => [...prev, newTitle])
-
-    toast({
-      title: "Novo Título!",
-      description: `Você conquistou o título: ${title.name}!`,
+    setTitles((prev) => {
+      // Verificar se não há ID duplicado
+      if (prev.some(t => t.id === newId)) {
+        console.warn('ID duplicado detectado para título, regenerando...', newId)
+        newTitle.id = generateUniqueId()
+      }
+      return [...prev, newTitle]
     })
+
+    if (!silent) {
+      toast({
+        title: "Novo Título!",
+        description: `Você conquistou o título: ${title.name}!`,
+      })
+    }
   }
 
   const toggleTitle = (titleId: string) => {
@@ -562,6 +654,373 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     })
   }
 
+  // Função para processar recompensas de um mangá específico e episódio
+  const processRewards = (mangaId: string, episode: number) => {
+    // Primeiro tenta encontrar pelo ID, depois pelo título
+    const manga = mangas.find(m => m.id === mangaId)
+    if (!manga) return
+
+    // PRIORIDADE 1: Buscar por título (mais confiável)
+    let reward = getMangaRewardsByTitle(manga.title, episode)
+    let rewardMangaId = reward ? reward.mangaId : mangaId
+
+    // PRIORIDADE 2: Se não encontrou por título, tentar por ID (fallback)
+    if (!reward) {
+      // Tenta diferentes formas de identificar o mangá nas recompensas
+      const possibleIds = [
+        mangaId,
+        manga.title.toLowerCase().replace(/\s+/g, '-'),
+        manga.title.toLowerCase().replace(/\s+/g, '_'),
+        manga.title.toLowerCase()
+      ]
+
+      for (const id of possibleIds) {
+        reward = getMangaRewards(id, episode)
+        if (reward) {
+          rewardMangaId = id
+          break
+        }
+      }
+    }
+
+    if (!reward) return
+
+    // Usar callback para verificar com o estado mais recente
+    setCollectedRewards(prevCollected => {
+      // Verificar se já foi coletada usando o mangaId original da recompensa
+      const correctRewardId = getRewardId(reward.mangaId, episode)
+      const allPossibleRewardIds = possibleIds.map(id => getRewardId(id, episode))
+      
+      // Para debug: verificar se já foi coletada para este episódio específico
+      const episodePattern = new RegExp(`-${episode}$`)
+      const alreadyCollected = prevCollected.includes(correctRewardId) || 
+                              allPossibleRewardIds.some(id => prevCollected.includes(id)) ||
+                              prevCollected.some(id => episodePattern.test(id))
+      
+      if (alreadyCollected) {
+        return prevCollected
+      }
+
+      // Usar o mangaId original do arquivo de recompensas para consistência
+      const rewardId = correctRewardId
+
+      // Processar recompensas imediatamente
+      if (reward.rewards.experience) {
+        addExperience(reward.rewards.experience)
+      }
+
+      if (reward.rewards.abilities) {
+        reward.rewards.abilities.forEach(abilityData => {
+          addAbility(abilityData, mangaId)
+        })
+      }
+
+      if (reward.rewards.items) {
+        reward.rewards.items.forEach(itemData => {
+          addItem(itemData, mangaId)
+        })
+      }
+
+      if (reward.rewards.titles) {
+        reward.rewards.titles.forEach(titleData => {
+          addTitle(titleData, mangaId)
+        })
+      }
+
+      if (reward.rewards.attributes) {
+        Object.entries(reward.rewards.attributes).forEach(([attr, value]) => {
+          if (value) {
+            console.log(`[DEBUG] processRewards - aplicando atributo ${attr}: +${value}`)
+            setProfile((prev) => {
+              const newValue = Math.max(1, (prev.attributes[attr] || 1) + value)
+              console.log(`[DEBUG] processRewards - ${attr}: ${prev.attributes[attr] || 1} -> ${newValue}`)
+              return {
+                ...prev,
+                attributes: {
+                  ...prev.attributes,
+                  [attr]: newValue,
+                },
+              }
+            })
+          }
+        })
+      }
+
+      // Notificação de recompensa
+      addNotification({
+        type: "success",
+        title: "🎁 Recompensa Desbloqueada!",
+        description: `Você recebeu recompensas por ler o capítulo ${episode} de ${reward.mangaTitle}!`,
+      })
+
+      return [...prevCollected, rewardId]
+    })
+  }
+
+  // Função para processar todas as recompensas pendentes (capítulos anteriores não coletados)
+  const processPendingRewards = (mangaId: string, currentEpisode: number, excludeCurrentEpisode: boolean = false) => {
+    // Primeiro tenta encontrar pelo ID, depois pelo título
+    const manga = mangas.find(m => m.id === mangaId)
+    if (!manga) return
+
+    // Tenta diferentes formas de identificar o mangá nas recompensas
+    const possibleIds = [
+      mangaId,
+      manga.title.toLowerCase().replace(/\s+/g, '-'),
+      manga.title.toLowerCase().replace(/\s+/g, '_'),
+      manga.title.toLowerCase()
+    ]
+
+    // Usar callback para garantir que temos o estado mais recente
+    setCollectedRewards(prevCollected => {
+      let pendingRewards: MangaReward[] = []
+      let rewardMangaId = mangaId
+
+      for (const id of possibleIds) {
+        pendingRewards = getPendingRewards(id, currentEpisode, prevCollected)
+        if (pendingRewards.length > 0) {
+          rewardMangaId = id
+          break
+        }
+      }
+
+      // Se deve excluir o episódio atual, filtrar ele das recompensas pendentes
+      if (excludeCurrentEpisode) {
+        pendingRewards = pendingRewards.filter(reward => reward.episode < currentEpisode)
+      }
+
+      if (pendingRewards.length === 0) return prevCollected
+
+      let newCollectedRewards = [...prevCollected]
+      
+      // Contadores para a notificação
+      let abilitiesAdded = 0
+      let itemsAdded = 0
+      let titlesAdded = 0
+      let experienceAdded = 0
+      let attributesAdded = 0
+      
+      // Acumular atributos para aplicar tudo de uma vez
+      const attributesToAdd: Record<string, number> = {}
+
+      // Processar cada recompensa pendente em ordem de capítulo
+      pendingRewards.sort((a, b) => a.episode - b.episode).forEach(reward => {
+        // Verificar com todos os possíveis IDs para evitar duplicação
+        const allPossibleRewardIds = possibleIds.map(id => getRewardId(id, reward.episode))
+        
+        // Verificar se já foi coletada usando o estado original
+        const alreadyCollected = allPossibleRewardIds.some(id => prevCollected.includes(id)) || 
+                                allPossibleRewardIds.some(id => newCollectedRewards.includes(id))
+        
+        if (alreadyCollected) return
+
+        // Usar o mangaId original para consistência
+        const rewardId = getRewardId(mangaId, reward.episode)
+
+        // Adicionar às recompensas coletadas
+        newCollectedRewards.push(rewardId)
+
+        // Processar recompensas
+        if (reward.rewards.experience) {
+          experienceAdded += reward.rewards.experience
+          addExperience(reward.rewards.experience)
+        }
+
+        if (reward.rewards.abilities) {
+          abilitiesAdded += reward.rewards.abilities.length
+          reward.rewards.abilities.forEach(abilityData => {
+            addAbility(abilityData, mangaId, true) // Silent mode
+          })
+        }
+
+        if (reward.rewards.items) {
+          itemsAdded += reward.rewards.items.length
+          reward.rewards.items.forEach(itemData => {
+            addItem(itemData, mangaId, true) // Silent mode
+          })
+        }
+
+        if (reward.rewards.titles) {
+          titlesAdded += reward.rewards.titles.length
+          reward.rewards.titles.forEach(titleData => {
+            addTitle(titleData, mangaId, true) // Silent mode
+          })
+        }
+
+        if (reward.rewards.attributes) {
+          Object.entries(reward.rewards.attributes).forEach(([attr, value]) => {
+            if (value) {
+              attributesAdded += value
+              // Acumular atributos em vez de aplicar imediatamente
+              attributesToAdd[attr] = (attributesToAdd[attr] || 0) + value
+            }
+          })
+        }
+      })
+
+      // Aplicar todos os atributos acumulados de uma vez (com verificação anti-duplicação)
+      if (Object.keys(attributesToAdd).length > 0) {
+        console.log(`[DEBUG] Tentando aplicar atributos (processPendingRewards): ${JSON.stringify(attributesToAdd)}`)
+        setProfile((prev) => {
+          const updatedAttributes = { ...prev.attributes }
+          let hasChanges = false
+          
+          Object.entries(attributesToAdd).forEach(([attr, value]) => {
+            const currentValue = updatedAttributes[attr] || 1
+            const newValue = Math.max(1, currentValue + value)
+            if (newValue !== currentValue) {
+              updatedAttributes[attr] = newValue
+              hasChanges = true
+              console.log(`[DEBUG] ${attr}: ${currentValue} -> ${newValue} (+${value})`)
+            }
+          })
+          
+          if (!hasChanges) {
+            console.log(`[DEBUG] Nenhuma mudança nos atributos detectada, mantendo estado atual`)
+            return prev
+          }
+          
+          console.log(`[DEBUG] Atributos atualizados (processPendingRewards): ${JSON.stringify(updatedAttributes)}`)
+          return {
+            ...prev,
+            attributes: updatedAttributes
+          }
+        })
+      }
+
+      // Mostrar notificação consolidada com os totais (se houver itens)
+      if (pendingRewards.length > 0 && (abilitiesAdded > 0 || itemsAdded > 0 || titlesAdded > 0 || experienceAdded > 0 || attributesAdded > 0)) {
+        const messageParts = []
+        if (abilitiesAdded > 0) messageParts.push(`${abilitiesAdded} habilidade${abilitiesAdded > 1 ? 's' : ''}`)
+        if (itemsAdded > 0) messageParts.push(`${itemsAdded} item${itemsAdded > 1 ? 's' : ''}`)
+        if (titlesAdded > 0) messageParts.push(`${titlesAdded} título${titlesAdded > 1 ? 's' : ''}`)
+        if (experienceAdded > 0) messageParts.push(`${experienceAdded} XP`)
+        if (attributesAdded > 0) messageParts.push(`${attributesAdded} pontos de atributo${attributesAdded > 1 ? 's' : ''}`)
+
+        const message = messageParts.join(', ')
+
+        addNotification({
+          type: "success",
+          title: "🎁 Você ganhou!",
+          description: message
+        })
+      }
+
+      return newCollectedRewards
+    })
+  }
+
+  // Função para remover recompensas quando volta a um capítulo anterior
+  const removeRewards = (mangaId: string, currentEpisode: number) => {
+    // Primeiro tenta encontrar pelo ID, depois pelo título
+    const manga = mangas.find(m => m.id === mangaId)
+    if (!manga) return
+
+    // Tenta diferentes formas de identificar o mangá nas recompensas
+    const possibleIds = [
+      mangaId,
+      manga.title.toLowerCase().replace(/\s+/g, '-'),
+      manga.title.toLowerCase().replace(/\s+/g, '_'),
+      manga.title.toLowerCase()
+    ]
+
+    let rewardsToRemove: MangaReward[] = []
+    let rewardMangaId = mangaId
+
+    for (const id of possibleIds) {
+      rewardsToRemove = getRewardsToRemove(id, currentEpisode)
+      if (rewardsToRemove.length > 0) {
+        rewardMangaId = id
+        break
+      }
+    }
+
+    if (rewardsToRemove.length === 0) return
+
+    // Usar callback para garantir que temos o estado mais recente
+    setCollectedRewards(prevCollected => {
+      const rewardsToActuallyRemove = rewardsToRemove.filter(reward => {
+        const rewardId = getRewardId(rewardMangaId, reward.episode)
+        return prevCollected.includes(rewardId)
+      })
+
+      if (rewardsToActuallyRemove.length === 0) return prevCollected
+
+      // Processar cada recompensa que precisa ser removida
+      rewardsToActuallyRemove.forEach(reward => {
+        const rewardId = getRewardId(rewardMangaId, reward.episode)
+        
+        // Remove da lista de recompensas coletadas
+        // Remover habilidades (só remove se vieram exatamente deste mangá e capítulo)
+        if (reward.rewards.abilities) {
+          reward.rewards.abilities.forEach(abilityData => {
+            setAbilities(prev => prev.filter(ability => 
+              !(ability.name === abilityData.name && 
+                ability.sources.includes(mangaId) &&
+                ability.level === abilityData.level)
+            ))
+          })
+        }
+
+        // Remover itens (só remove se vieram exatamente deste mangá)
+        if (reward.rewards.items) {
+          reward.rewards.items.forEach(itemData => {
+            setItems(prev => prev.filter(item => 
+              !(item.name === itemData.name && item.source === mangaId)
+            ))
+          })
+        }
+
+        // Remover títulos (só remove se vieram exatamente deste mangá)
+        if (reward.rewards.titles) {
+          reward.rewards.titles.forEach(titleData => {
+            setTitles(prev => prev.filter(title => 
+              !(title.name === titleData.name && title.source === mangaId)
+            ))
+          })
+        }
+
+        // Remover atributos (se possível - isso é mais complexo porque pode ter outras fontes)
+        if (reward.rewards.attributes) {
+          Object.entries(reward.rewards.attributes).forEach(([attr, value]) => {
+            if (value) {
+              // Só remove se for um atributo customizado, não os base
+              if (attr in profile.attributes) {
+                setProfile(prev => ({
+                  ...prev,
+                  attributes: {
+                    ...prev.attributes,
+                    [attr]: Math.max(1, prev.attributes[attr] - value)
+                  }
+                }))
+              }
+            }
+          })
+        }
+
+        // Remover experiência se houver
+        if (reward.rewards.experience) {
+          removeExperience(reward.rewards.experience)
+        }
+
+        // Notificação de remoção
+        addNotification({
+          type: "warning",
+          title: "🔄 Recompensas Removidas!",
+          description: `Recompensas do capítulo ${reward.episode} de ${reward.mangaTitle} foram removidas por retroceder.`,
+        })
+      })
+
+      // Retornar o novo estado sem as recompensas removidas
+      return prevCollected.filter(id => {
+        return !rewardsToActuallyRemove.some(reward => {
+          const rewardId = getRewardId(rewardMangaId, reward.episode)
+          return id === rewardId
+        })
+      })
+    })
+  }
+
   const updateMangaEpisode = (mangaId: string, episode: number) => {
     setMangas((prev) =>
       prev.map((manga) =>
@@ -577,10 +1036,12 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   }
 
   const incrementEpisode = (mangaId: string) => {
+    let newEpisode = 0
+    
     setMangas((prev) =>
       prev.map((manga) => {
         if (manga.id === mangaId) {
-          const newEpisode = (manga.currentEpisode || 0) + 1
+          newEpisode = (manga.currentEpisode || 0) + 1
           return { ...manga, currentEpisode: newEpisode }
         }
         return manga
@@ -598,11 +1059,14 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   }
 
   const decrementEpisode = (mangaId: string) => {
+    let newEpisode = 0
+    let previousEpisode = 0
+    
     setMangas((prev) =>
       prev.map((manga) => {
         if (manga.id === mangaId) {
-          const currentEp = manga.currentEpisode || 0
-          const newEpisode = Math.max(0, currentEp - 1)
+          previousEpisode = manga.currentEpisode || 0
+          newEpisode = Math.max(0, previousEpisode - 1)
           
           return { ...manga, currentEpisode: newEpisode }
         }
@@ -717,12 +1181,233 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   }
 
   const addNotification = (notification: Omit<Notification, "id">) => {
-    const id = Math.random().toString(36).substr(2, 9)
-    setNotifications(prev => [...prev, { ...notification, id }])
+    const now = Date.now()
+    
+    // Não aplicar rate limiting para notificações importantes como episódios
+    const shouldSkipRateLimit = [
+      "📈 Episódio Avançado!",
+      "📉 Episódio Retrocedido!", 
+      "📖 Episódio Atualizado!",
+      "🔄 Sincronização Concluída!",
+      "🎁 Recompensa Desbloqueada!",
+      "🔄 Recompensas Removidas!"
+    ].includes(notification.title)
+    
+    if (!shouldSkipRateLimit) {
+      const notificationKey = `${notification.type}-${notification.title}`
+      const lastTime = lastNotificationTime[notificationKey] || 0
+      const minInterval = 1000 // 1 segundo apenas para notificações menos importantes
+      
+      // Evitar spam apenas para notificações não importantes
+      if (now - lastTime < minInterval) {
+        return
+      }
+      
+      // Atualizar timestamp apenas se aplicou rate limiting
+      setLastNotificationTime(prev => ({
+        ...prev,
+        [notificationKey]: now
+      }))
+    }
+    
+    const id = generateUniqueId()
+    
+    setNotifications(prev => {
+      const newNotifications = [...prev, { ...notification, id }]
+      // Manter apenas as 3 notificações mais recentes
+      return newNotifications.slice(-3)
+    })
   }
 
   const removeNotification = (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
+  // Função para sincronizar recompensas de um mangá específico
+  const syncMangaRewards = (mangaId: string) => {
+    const manga = mangas.find(m => m.id === mangaId)
+    if (!manga || manga.currentEpisode <= 0) return
+
+    // Evitar múltiplas execuções simultâneas
+    if (syncingRewards.has(mangaId)) {
+      console.log(`[DEBUG] Já sincronizando ${manga.title}, ignorando...`)
+      return
+    }
+
+    setSyncingRewards(prev => new Set(prev).add(mangaId))
+
+    // Usar callback para acessar o estado atual das recompensas coletadas
+    setCollectedRewards(prevCollected => {
+      const pendingRewards = []
+      const processedEpisodes = new Set<number>()
+      
+      // Limpar IDs inconsistentes - manter apenas um ID por episódio
+      const cleanedCollectedRewards = [...prevCollected]
+      
+      // Buscar recompensas em todos os capítulos até o atual - PRIORIZANDO BUSCA POR TÍTULO
+      console.log(`[DEBUG] Buscando recompensas do episódio 1 até ${manga.currentEpisode} para "${manga.title}"`)
+      
+      for (let episode = 1; episode <= manga.currentEpisode; episode++) {
+        // Evitar processar o mesmo episódio múltiplas vezes
+        if (processedEpisodes.has(episode)) continue
+        
+        console.log(`[DEBUG] Verificando episódio ${episode}...`)
+        
+        // PRIORIDADE 1: Buscar por título (mais confiável)
+        let reward = getMangaRewardsByTitle(manga.title, episode)
+        console.log(`[DEBUG] Buscando por título "${manga.title}" ep ${episode}:`, reward ? 'ENCONTRADO' : 'não encontrado')
+        
+        // PRIORIDADE 2: Se não encontrou por título, tentar por ID (fallback)
+        if (!reward) {
+          reward = getMangaRewards(mangaId, episode)
+          console.log(`[DEBUG] Fallback - buscando por ID "${mangaId}" ep ${episode}:`, reward ? 'ENCONTRADO' : 'não encontrado')
+        }
+        
+        if (reward) {
+          // Usar o mangaId da recompensa encontrada para consistência
+          const correctRewardId = getRewardId(reward.mangaId, episode)
+          
+          // Limpar IDs duplicados para este episódio
+          const episodePattern = new RegExp(`-${episode}$`)
+          const episodeIndices = []
+          cleanedCollectedRewards.forEach((id, index) => {
+            if (episodePattern.test(id)) {
+              episodeIndices.push(index)
+            }
+          })
+          
+          // Se encontrou IDs para este episódio, limpar e manter apenas o correto
+          if (episodeIndices.length > 0) {
+            episodeIndices.reverse().forEach(index => {
+              cleanedCollectedRewards.splice(index, 1)
+            })
+            console.log(`[DEBUG] Limpando episódio ${episode} - removendo IDs duplicados`)
+          }
+          
+          // Verificar se a recompensa já foi coletada com o ID correto
+          const alreadyCollected = cleanedCollectedRewards.includes(correctRewardId)
+          
+          console.log(`[DEBUG] Episódio ${episode} - já coletado:`, alreadyCollected, 'correctRewardId:', correctRewardId, 'IDs coletados (limpos):', cleanedCollectedRewards)
+          
+          if (!alreadyCollected) {
+            pendingRewards.push({ reward, episode, rewardId: correctRewardId })
+            processedEpisodes.add(episode)
+          }
+        }
+      }
+
+      // Se não há recompensas pendentes, não mostrar notificação - apenas limpar estado
+      if (pendingRewards.length === 0) {
+        // Limpar estado de sincronização
+        setTimeout(() => {
+          setSyncingRewards(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(mangaId)
+            return newSet
+          })
+        }, 0)
+        return cleanedCollectedRewards
+      }
+
+      // Contadores para a notificação
+      let abilitiesAdded = 0
+      let itemsAdded = 0
+      let titlesAdded = 0
+      let experienceAdded = 0
+      const newCollectedRewards = [...cleanedCollectedRewards]
+
+      // Processar todas as recompensas pendentes (silenciosamente)
+      pendingRewards.forEach(({ reward, episode, rewardId }) => {
+        // Adicionar recompensas
+        if (reward.rewards.experience) {
+          experienceAdded += reward.rewards.experience
+          addExperience(reward.rewards.experience)
+        }
+
+        if (reward.rewards.abilities) {
+          abilitiesAdded += reward.rewards.abilities.length
+          reward.rewards.abilities.forEach(abilityData => {
+            addAbility(abilityData, mangaId, true) // Silent mode
+          })
+        }
+
+        if (reward.rewards.items) {
+          itemsAdded += reward.rewards.items.length
+          reward.rewards.items.forEach(itemData => {
+            addItem(itemData, mangaId, true) // Silent mode
+          })
+        }
+
+        if (reward.rewards.titles) {
+          titlesAdded += reward.rewards.titles.length
+          reward.rewards.titles.forEach(titleData => {
+            addTitle(titleData, mangaId, true) // Silent mode
+          })
+        }
+
+        // Marcar como coletada - evitar duplicação
+        if (!newCollectedRewards.includes(rewardId)) {
+          newCollectedRewards.push(rewardId)
+        }
+      })
+
+      // Mostrar notificação consolidada com os totais
+      if (pendingRewards.length > 0 && (abilitiesAdded > 0 || itemsAdded > 0 || titlesAdded > 0 || experienceAdded > 0)) {
+        const messageParts = []
+        if (abilitiesAdded > 0) messageParts.push(`${abilitiesAdded} habilidade${abilitiesAdded > 1 ? 's' : ''}`)
+        if (itemsAdded > 0) messageParts.push(`${itemsAdded} item${itemsAdded > 1 ? 's' : ''}`)
+        if (titlesAdded > 0) messageParts.push(`${titlesAdded} título${titlesAdded > 1 ? 's' : ''}`)
+        if (experienceAdded > 0) messageParts.push(`${experienceAdded} XP`)
+
+        const message = messageParts.join(', ')
+
+        addNotification({
+          type: "success",
+          title: "🎁 Você ganhou!",
+          description: message
+        })
+      }
+
+      // Limpeza final: garantir que não há IDs inconsistentes para os episódios processados
+      const finalCleanedRewards = [...newCollectedRewards]
+      for (let episode = 1; episode <= manga.currentEpisode; episode++) {
+        const episodePattern = new RegExp(`-${episode}$`)
+        const episodeIds = finalCleanedRewards.filter(id => episodePattern.test(id))
+        
+        if (episodeIds.length > 1) {
+          // Se há múltiplos IDs para o mesmo episódio, manter apenas um (o mais recente ou correto)
+          const correctReward = getMangaRewardsByTitle(manga.title, episode) || getMangaRewards(mangaId, episode)
+          if (correctReward) {
+            const correctId = getRewardId(correctReward.mangaId, episode)
+            // Remover todos os IDs para este episódio
+            const filtered = finalCleanedRewards.filter(id => !episodePattern.test(id))
+            // Adicionar apenas o correto se estiver nos coletados
+            if (newCollectedRewards.includes(correctId)) {
+              filtered.push(correctId)
+            }
+            finalCleanedRewards.splice(0, finalCleanedRewards.length, ...filtered)
+            console.log(`[DEBUG] Limpeza final - episódio ${episode}: removidos ${episodeIds.length - 1} IDs duplicados`)
+          }
+        }
+      }
+
+      return finalCleanedRewards
+    })
+
+    // Limpar estado de sincronização após o processamento
+    setTimeout(() => {
+      setSyncingRewards(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(mangaId)
+        return newSet
+      })
+    }, 100)
+  }
+
+  // Função temporária para debug - limpar recompensas coletadas
+  const clearCollectedRewards = () => {
+    console.log(`[DEBUG] Limpando recompensas coletadas:`, collectedRewards)
+    setCollectedRewards([])
   }
 
   return (
@@ -734,6 +1419,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         items,
         titles,
         notifications,
+        collectedRewards,
         addManga,
         addAbility,
         editAbility,
@@ -761,6 +1447,8 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         importData,
         addNotification,
         removeNotification,
+        clearCollectedRewards,
+        syncMangaRewards,
       }}
     >
       {children}

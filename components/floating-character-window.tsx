@@ -41,7 +41,8 @@ import {
   User,
   Trophy,
   X,
-  Search
+  Search,
+  RefreshCw
 } from "lucide-react"
 import Image from "next/image"
 
@@ -74,7 +75,8 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     deleteTitle, 
     updateMangaEpisode, 
     incrementEpisode, 
-    decrementEpisode 
+    decrementEpisode,
+    syncMangaRewards
   } = useIsekai()
 
   const [activeModal, setActiveModal] = useState<string | null>(null)
@@ -1184,6 +1186,15 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                                 <ExternalLink className={isMobile ? 'w-3 h-3' : 'w-3 h-3'} />
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => syncMangaRewards(manga.id)}
+                              className={`text-white hover:bg-green-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
+                              title="Sincronizar recompensas"
+                            >
+                              <RefreshCw className={isMobile ? 'w-3 h-3' : 'w-3 h-3'} />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
