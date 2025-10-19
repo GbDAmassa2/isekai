@@ -100,6 +100,16 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   const [syncingRewards, setSyncingRewards] = useState<Set<string>>(new Set())
   const [lastNotificationTime, setLastNotificationTime] = useState<Record<string, number>>({})
 
+  // Utilitário: possíveis IDs de recompensa derivados do título
+  const getPossibleRewardPrefixesFromTitle = (title: string) => {
+    const base = title.toLowerCase()
+    return [
+      base,
+      base.replace(/\s+/g, '-'),
+      base.replace(/\s+/g, '_'),
+    ]
+  }
+
   useEffect(() => {
     const userKey = `isekai-data-${userName}`
     const savedData = localStorage.getItem(userKey)
@@ -288,6 +298,10 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
       ...prev,
       totalMangasRead: prev.totalMangasRead + 1,
     }))
+
+    // Ao adicionar um mangá (recomeço), limpamos recompensas coletadas antigas desse título
+    const prefixes = getPossibleRewardPrefixesFromTitle(manga.title)
+    setCollectedRewards((prev) => prev.filter((rid) => !prefixes.some((p) => rid.startsWith(`${p}-`))))
 
     // Calcular XP baseado no episódio atual (10 XP por episódio)
     const xpGained = manga.currentEpisode ? manga.currentEpisode * 10 : 0
@@ -530,6 +544,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     setAbilities([])
     setItems([])
     setTitles([])
+    setCollectedRewards([])
     
     toast({
       title: "Perfil resetado!",
@@ -634,6 +649,15 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     setAbilities((prev) => prev.filter((a) => !a.sources.includes(id)))
     setItems((prev) => prev.filter((i) => i.source !== id))
     setTitles((prev) => prev.filter((t) => t.source !== id))
+
+    // Remover rewardIds ligados a este título (caso seja um recomeço posterior)
+    const toRemovePrefixes = (() => {
+      const m = mangas.find((x) => x.id === id)
+      return m ? getPossibleRewardPrefixesFromTitle(m.title) : []
+    })()
+    if (toRemovePrefixes.length > 0) {
+      setCollectedRewards((prev) => prev.filter((rid) => !toRemovePrefixes.some((p) => rid.startsWith(`${p}-`))))
+    }
 
     // Remover XP baseado no episódio atual do mangá
     if (xpLost > 0) {
