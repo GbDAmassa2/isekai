@@ -1279,27 +1279,36 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
             addExperience(reward.rewards.experience)
           }
 
-          // Adicionar habilidades
+          // Adicionar habilidades (apenas se ainda não tiver)
           if (reward.rewards.abilities) {
-            abilitiesAdded += reward.rewards.abilities.length
             reward.rewards.abilities.forEach((abilityData: any) => {
-              addAbility(abilityData, mangaId, true) // Silent mode
+              const alreadyHas = abilities.some(a => a.name === abilityData.name && a.sources.includes(mangaId))
+              if (!alreadyHas) {
+                addAbility(abilityData, mangaId, true) // Silent mode
+                abilitiesAdded += 1
+              }
             })
           }
 
-          // Adicionar itens
+          // Adicionar itens (apenas se ainda não tiver)
           if (reward.rewards.items) {
-            itemsAdded += reward.rewards.items.length
             reward.rewards.items.forEach((itemData: any) => {
-              addItem(itemData, mangaId, true) // Silent mode
+              const alreadyHas = items.some(i => i.name === itemData.name && i.source === mangaId)
+              if (!alreadyHas) {
+                addItem(itemData, mangaId, true) // Silent mode
+                itemsAdded += 1
+              }
             })
           }
 
-          // Adicionar títulos
+          // Adicionar títulos (apenas se ainda não tiver)
           if (reward.rewards.titles) {
-            titlesAdded += reward.rewards.titles.length
             reward.rewards.titles.forEach((titleData: any) => {
-              addTitle(titleData, mangaId, true) // Silent mode
+              const alreadyHas = titles.some(t => t.name === titleData.name && t.source === mangaId)
+              if (!alreadyHas) {
+                addTitle(titleData, mangaId, true) // Silent mode
+                titlesAdded += 1
+              }
             })
           }
 
