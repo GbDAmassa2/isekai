@@ -133,7 +133,7 @@ export const MANGA_REWARDS: MangaReward[] = [
   {
     mangaId: "eleceed",
     mangaTitle: "Eleceed",
-    episode: 4
+    episode: 4,
     rewards: {
       experience: 0,
       abilities: [{
