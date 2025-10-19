@@ -133,6 +133,24 @@ export const MANGA_REWARDS: MangaReward[] = [
   {
     mangaId: "eleceed",
     mangaTitle: "Eleceed",
+    episode: 4
+    rewards: {
+      experience: 0,
+      abilities: [{
+        name: "Electric Control3,
+        description: "Controle básico sobre eletricidade",
+        type: "active" as const,
+        level: 1,
+        category: "attack" as const,
+        power: 4,
+        manaCost: 15,
+        cooldown: 45
+      }]
+    }
+  },
+  {
+    mangaId: "eleceed",
+    mangaTitle: "Eleceed",
     episode: 3,
     rewards: {
       attributes: {
