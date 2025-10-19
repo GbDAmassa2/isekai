@@ -137,7 +137,7 @@ export const MANGA_REWARDS: MangaReward[] = [
     rewards: {
       experience: 0,
       abilities: [{
-        name: "Electric Control3,
+        name: "Electric Control3",
         description: "Controle básico sobre eletricidade",
         type: "active" as const,
         level: 1,
