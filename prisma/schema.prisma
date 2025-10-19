@@ -1,0 +1,26 @@
+generator client {
+  provider        = "prisma-client-js"
+  // Específico para Postgres nesta versão
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Seus modelos continuam os mesmos...
+model MangaReward {
+  id          String @id @default(cuid())
+  mangaId     String
+  mangaTitle  String
+  episode     Int
+  experience  Int?
+  abilities   Json?
+  items       Json?
+  titles      Json?
+  attributes  Json?
+
+  @@unique([mangaId, episode])
+  @@map("manga_rewards")
+}

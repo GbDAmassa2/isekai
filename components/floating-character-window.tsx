@@ -1189,7 +1189,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => syncMangaRewards(manga.id)}
+                              onClick={() => syncMangaRewards(manga.id).catch(console.error)}
                               className={`text-white hover:bg-green-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                               title="Sincronizar recompensas"
                             >

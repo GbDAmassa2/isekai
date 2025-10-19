@@ -51,7 +51,7 @@ interface IsekaiContextType {
   addNotification: (notification: Omit<Notification, "id">) => void
   removeNotification: (id: string) => void
   clearCollectedRewards: () => void
-  syncMangaRewards: (mangaId: string) => void
+  syncMangaRewards: (mangaId: string) => Promise<void>
 }
 
 const IsekaiContext = createContext<IsekaiContextType | undefined>(undefined)
@@ -1223,8 +1223,8 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
-  // Função para sincronizar recompensas de um mangá específico
-  const syncMangaRewards = (mangaId: string) => {
+  // Função para sincronizar recompensas de um mangá específico (NOVA VERSÃO COM API)
+  const syncMangaRewards = async (mangaId: string) => {
     const manga = mangas.find(m => m.id === mangaId)
     if (!manga || manga.currentEpisode <= 0) return
 
@@ -1236,172 +1236,123 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
 
     setSyncingRewards(prev => new Set(prev).add(mangaId))
 
-    // Usar callback para acessar o estado atual das recompensas coletadas
-    setCollectedRewards(prevCollected => {
-      const pendingRewards = []
-      const processedEpisodes = new Set<number>()
-      
-      // Limpar IDs inconsistentes - manter apenas um ID por episódio
-      const cleanedCollectedRewards = [...prevCollected]
-      
-      // Buscar recompensas em todos os capítulos até o atual - PRIORIZANDO BUSCA POR TÍTULO
-      console.log(`[DEBUG] Buscando recompensas do episódio 1 até ${manga.currentEpisode} para "${manga.title}"`)
-      
-      for (let episode = 1; episode <= manga.currentEpisode; episode++) {
-        // Evitar processar o mesmo episódio múltiplas vezes
-        if (processedEpisodes.has(episode)) continue
-        
-        console.log(`[DEBUG] Verificando episódio ${episode}...`)
-        
-        // PRIORIDADE 1: Buscar por título (mais confiável)
-        let reward = getMangaRewardsByTitle(manga.title, episode)
-        console.log(`[DEBUG] Buscando por título "${manga.title}" ep ${episode}:`, reward ? 'ENCONTRADO' : 'não encontrado')
-        
-        // PRIORIDADE 2: Se não encontrou por título, tentar por ID (fallback)
-        if (!reward) {
-          reward = getMangaRewards(mangaId, episode)
-          console.log(`[DEBUG] Fallback - buscando por ID "${mangaId}" ep ${episode}:`, reward ? 'ENCONTRADO' : 'não encontrado')
-        }
-        
-        if (reward) {
-          // Usar o mangaId da recompensa encontrada para consistência
-          const correctRewardId = getRewardId(reward.mangaId, episode)
-          
-          // Limpar IDs duplicados para este episódio
-          const episodePattern = new RegExp(`-${episode}$`)
-          const episodeIndices = []
-          cleanedCollectedRewards.forEach((id, index) => {
-            if (episodePattern.test(id)) {
-              episodeIndices.push(index)
-            }
-          })
-          
-          // Se encontrou IDs para este episódio, limpar e manter apenas o correto
-          if (episodeIndices.length > 0) {
-            episodeIndices.reverse().forEach(index => {
-              cleanedCollectedRewards.splice(index, 1)
-            })
-            console.log(`[DEBUG] Limpando episódio ${episode} - removendo IDs duplicados`)
-          }
-          
-          // Verificar se a recompensa já foi coletada com o ID correto
-          const alreadyCollected = cleanedCollectedRewards.includes(correctRewardId)
-          
-          console.log(`[DEBUG] Episódio ${episode} - já coletado:`, alreadyCollected, 'correctRewardId:', correctRewardId, 'IDs coletados (limpos):', cleanedCollectedRewards)
-          
-          if (!alreadyCollected) {
-            pendingRewards.push({ reward, episode, rewardId: correctRewardId })
-            processedEpisodes.add(episode)
-          }
-        }
-      }
-
-      // Se não há recompensas pendentes, não mostrar notificação - apenas limpar estado
-      if (pendingRewards.length === 0) {
-        // Limpar estado de sincronização
-        setTimeout(() => {
-          setSyncingRewards(prev => {
-            const newSet = new Set(prev)
-            newSet.delete(mangaId)
-            return newSet
-          })
-        }, 0)
-        return cleanedCollectedRewards
-      }
-
-      // Contadores para a notificação
-      let abilitiesAdded = 0
-      let itemsAdded = 0
-      let titlesAdded = 0
-      let experienceAdded = 0
-      const newCollectedRewards = [...cleanedCollectedRewards]
-
-      // Processar todas as recompensas pendentes (silenciosamente)
-      pendingRewards.forEach(({ reward, episode, rewardId }) => {
-        // Adicionar recompensas
-        if (reward.rewards.experience) {
-          experienceAdded += reward.rewards.experience
-          addExperience(reward.rewards.experience)
-        }
-
-        if (reward.rewards.abilities) {
-          abilitiesAdded += reward.rewards.abilities.length
-          reward.rewards.abilities.forEach(abilityData => {
-            addAbility(abilityData, mangaId, true) // Silent mode
-          })
-        }
-
-        if (reward.rewards.items) {
-          itemsAdded += reward.rewards.items.length
-          reward.rewards.items.forEach(itemData => {
-            addItem(itemData, mangaId, true) // Silent mode
-          })
-        }
-
-        if (reward.rewards.titles) {
-          titlesAdded += reward.rewards.titles.length
-          reward.rewards.titles.forEach(titleData => {
-            addTitle(titleData, mangaId, true) // Silent mode
-          })
-        }
-
-        // Marcar como coletada - evitar duplicação
-        if (!newCollectedRewards.includes(rewardId)) {
-          newCollectedRewards.push(rewardId)
-        }
+    try {
+      // 1. Chama a API de backend, enviando o contexto necessário
+      const response = await fetch('/api/rewards/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mangaId, 
+          mangaTitle: manga.title,
+          currentEpisode: manga.currentEpisode,
+          collectedRewards: collectedRewards
+        }),
       })
 
-      // Mostrar notificação consolidada com os totais
-      if (pendingRewards.length > 0 && (abilitiesAdded > 0 || itemsAdded > 0 || titlesAdded > 0 || experienceAdded > 0)) {
-        const messageParts = []
-        if (abilitiesAdded > 0) messageParts.push(`${abilitiesAdded} habilidade${abilitiesAdded > 1 ? 's' : ''}`)
-        if (itemsAdded > 0) messageParts.push(`${itemsAdded} item${itemsAdded > 1 ? 's' : ''}`)
-        if (titlesAdded > 0) messageParts.push(`${titlesAdded} título${titlesAdded > 1 ? 's' : ''}`)
-        if (experienceAdded > 0) messageParts.push(`${experienceAdded} XP`)
+      const data = await response.json()
 
-        const message = messageParts.join(', ')
-
-        addNotification({
-          type: "success",
-          title: "🎁 Você ganhou!",
-          description: message
-        })
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao sincronizar recompensas')
       }
 
-      // Limpeza final: garantir que não há IDs inconsistentes para os episódios processados
-      const finalCleanedRewards = [...newCollectedRewards]
-      for (let episode = 1; episode <= manga.currentEpisode; episode++) {
-        const episodePattern = new RegExp(`-${episode}$`)
-        const episodeIds = finalCleanedRewards.filter(id => episodePattern.test(id))
-        
-        if (episodeIds.length > 1) {
-          // Se há múltiplos IDs para o mesmo episódio, manter apenas um (o mais recente ou correto)
-          const correctReward = getMangaRewardsByTitle(manga.title, episode) || getMangaRewards(mangaId, episode)
-          if (correctReward) {
-            const correctId = getRewardId(correctReward.mangaId, episode)
-            // Remover todos os IDs para este episódio
-            const filtered = finalCleanedRewards.filter(id => !episodePattern.test(id))
-            // Adicionar apenas o correto se estiver nos coletados
-            if (newCollectedRewards.includes(correctId)) {
-              filtered.push(correctId)
-            }
-            finalCleanedRewards.splice(0, finalCleanedRewards.length, ...filtered)
-            console.log(`[DEBUG] Limpeza final - episódio ${episode}: removidos ${episodeIds.length - 1} IDs duplicados`)
+      // 2. A API já fez todo o trabalho pesado (filtrar, etc.)
+      // 'data.appliedRewards' contém apenas as recompensas que o usuário acabou de ganhar.
+      const newRewards = data.appliedRewards || []
+
+      if (newRewards.length > 0) {
+        console.log(`[DEBUG] Processando ${newRewards.length} recompensas novas para ${manga.title}`)
+
+        // 3. Contadores para a notificação
+        let abilitiesAdded = 0
+        let itemsAdded = 0
+        let titlesAdded = 0
+        let experienceAdded = 0
+        const newCollectedRewards = [...collectedRewards]
+
+        // 4. Aplica as novas recompensas ao estado (lógica que você já tem!)
+        newRewards.forEach((reward: any) => {
+          const rewardId = `${reward.mangaId}-${reward.episode}`
+
+          // Adicionar experiência
+          if (reward.rewards.experience) {
+            experienceAdded += reward.rewards.experience
+            addExperience(reward.rewards.experience)
           }
+
+          // Adicionar habilidades
+          if (reward.rewards.abilities) {
+            abilitiesAdded += reward.rewards.abilities.length
+            reward.rewards.abilities.forEach((abilityData: any) => {
+              addAbility(abilityData, mangaId, true) // Silent mode
+            })
+          }
+
+          // Adicionar itens
+          if (reward.rewards.items) {
+            itemsAdded += reward.rewards.items.length
+            reward.rewards.items.forEach((itemData: any) => {
+              addItem(itemData, mangaId, true) // Silent mode
+            })
+          }
+
+          // Adicionar títulos
+          if (reward.rewards.titles) {
+            titlesAdded += reward.rewards.titles.length
+            reward.rewards.titles.forEach((titleData: any) => {
+              addTitle(titleData, mangaId, true) // Silent mode
+            })
+          }
+
+          // Adicionar atributos (se necessário, você pode implementar uma função addAttributes)
+          if (reward.rewards.attributes) {
+            // Implementar lógica para adicionar atributos se necessário
+            console.log(`[DEBUG] Atributos recebidos:`, reward.rewards.attributes)
+          }
+
+          // Marcar como coletada
+          if (!newCollectedRewards.includes(rewardId)) {
+            newCollectedRewards.push(rewardId)
+          }
+        })
+
+        // 5. Atualizar estado das recompensas coletadas
+        setCollectedRewards(newCollectedRewards)
+
+        // 6. Mostrar notificação consolidada
+        if (abilitiesAdded > 0 || itemsAdded > 0 || titlesAdded > 0 || experienceAdded > 0) {
+          const messageParts = []
+          if (abilitiesAdded > 0) messageParts.push(`${abilitiesAdded} habilidade${abilitiesAdded > 1 ? 's' : ''}`)
+          if (itemsAdded > 0) messageParts.push(`${itemsAdded} item${itemsAdded > 1 ? 's' : ''}`)
+          if (titlesAdded > 0) messageParts.push(`${titlesAdded} título${titlesAdded > 1 ? 's' : ''}`)
+          if (experienceAdded > 0) messageParts.push(`${experienceAdded} XP`)
+
+          const message = messageParts.join(', ')
+
+          addNotification({
+            type: "success",
+            title: "🎁 Você ganhou!",
+            description: message
+          })
         }
+      } else {
+        console.log(`[DEBUG] Nenhuma recompensa nova encontrada para ${manga.title}`)
       }
 
-      return finalCleanedRewards
-    })
-
-    // Limpar estado de sincronização após o processamento
-    setTimeout(() => {
+    } catch (error) {
+      console.error("Erro ao sincronizar recompensas:", error)
+      addNotification({
+        type: "error",
+        title: "❌ Erro na Sincronização",
+        description: "Não foi possível sincronizar as recompensas. Tente novamente."
+      })
+    } finally {
+      // Limpar estado de sincronização
       setSyncingRewards(prev => {
         const newSet = new Set(prev)
         newSet.delete(mangaId)
         return newSet
       })
-    }, 100)
+    }
   }
 
   // Função temporária para debug - limpar recompensas coletadas
