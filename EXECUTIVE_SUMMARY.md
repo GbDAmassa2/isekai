@@ -228,3 +228,4 @@ O projeto **Isekai** representa uma inovação significativa no espaço de aplic
 *Versão do Projeto: 1.0.0*
 *Status: Ativo e em Desenvolvimento*
 
+

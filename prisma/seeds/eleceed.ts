@@ -70,6 +70,29 @@ export async function seedEleceed(prisma: PrismaClient) {
     }
   });
 
+  await prisma.mangaReward.upsert({
+    where: { mangaId_episode: { mangaId: "eleceed", episode: 4} },
+    update: { mangaTitle: "eleceed" },
+    create: {
+      mangaId: "eleceed",
+      mangaTitle: "eleceed",
+      episode: 4
+      experience: 0,
+      abilities: [
+        {
+          name: "Electric Control3,
+          description: "Controle básico sobre eletricidade aprimorado",
+          type: "active",
+          level: 1,
+          category: "attack",
+          power: 4,
+          manaCost: 15,
+          cooldown: 45
+        }
+      ]
+    }
+  });
+
   // --- Capítulo 5 ---
   await prisma.mangaReward.upsert({
     where: { mangaId_episode: { mangaId: "eleceed", episode: 5 } },
