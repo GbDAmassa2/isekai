@@ -18,7 +18,7 @@ interface EditMangaDialogProps {
 }
 
 export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogProps) {
-  const { mangas, setMangas } = useIsekai()
+  const { mangas, editManga } = useIsekai()
   const [title, setTitle] = useState("")
   const [type, setType] = useState<"manga" | "manhwa" | "manhua">("manga")
   const [coverImage, setCoverImage] = useState("")
@@ -75,21 +75,14 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
     setIsAnimating(false)
     
     setTimeout(() => {
-      // Atualizar o mangá na lista
-      setMangas((prev) =>
-        prev.map((m) =>
-          m.id === manga.id
-            ? {
-                ...m,
-                title: title.trim(),
-                type,
-                coverImage: coverImage || undefined,
-                url: url || undefined,
-                currentEpisode: currentEpisode > 0 ? currentEpisode : undefined,
-              }
-            : m
-        )
-      )
+      // Atualizar o mangá usando a função do provider
+      editManga(manga.id, {
+        title: title.trim(),
+        type,
+        coverImage: coverImage.trim() || undefined,
+        url: url.trim() || undefined,
+        currentEpisode: currentEpisode > 0 ? currentEpisode : undefined,
+      })
 
       setDuplicateError("")
       onOpenChange(false)

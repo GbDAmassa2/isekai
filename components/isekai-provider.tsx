@@ -42,6 +42,7 @@ interface IsekaiContextType {
   addExperience: (amount: number) => void
   removeExperience: (amount: number) => void
   removeManga: (id: string) => void
+  editManga: (mangaId: string, updatedManga: Partial<Manga>) => void
   getMangaById: (id: string) => Manga | undefined
   updateMangaEpisode: (mangaId: string, episode: number) => void
   incrementEpisode: (mangaId: string) => void
@@ -675,6 +676,18 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
       type: "warning",
       title: "🗑️ Mangá Removido!",
       description: `${mangaToRemove?.title || 'Mangá'} foi removido da biblioteca.${xpLost > 0 ? ` -${xpLost} XP` : ''}`,
+    })
+  }
+
+  const editManga = (mangaId: string, updatedManga: Partial<Manga>) => {
+    setMangas((prev) =>
+      prev.map((manga) =>
+        manga.id === mangaId ? { ...manga, ...updatedManga } : manga
+      )
+    )
+    toast({
+      title: "Mangá Editado!",
+      description: "O mangá foi atualizado com sucesso.",
     })
   }
 
@@ -1423,6 +1436,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         addExperience,
         removeExperience,
         removeManga,
+        editManga,
         getMangaById,
         updateMangaEpisode,
         incrementEpisode,

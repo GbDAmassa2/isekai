@@ -1155,6 +1155,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                     {manga.coverImage && (
                       <div className="absolute inset-0">
                         <Image
+                          key={`${manga.id}-${manga.coverImage}`}
                           src={manga.coverImage || "/placeholder.svg"}
                           alt={manga.title}
                           fill
