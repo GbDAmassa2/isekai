@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
 import { Suspense } from "react"
+import { AuthProvider } from "@/components/auth-provider"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -21,10 +22,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-            <Suspense fallback={<div>Loading...</div>}>
-              {children}
-              <Toaster />
-            </Suspense>
+        <AuthProvider>
+          <Suspense fallback={<div>Loading...</div>}>
+            {children}
+            <Toaster />
+          </Suspense>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

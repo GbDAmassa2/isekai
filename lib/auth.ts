@@ -50,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               id: user.id,
               email: user.email,
               name: user.name,
+              isAdmin: user.isAdmin,
             }
           } catch (error: any) {
             console.error("Erro ao autenticar usuário:", error)
@@ -72,12 +73,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub!
+        session.user.isAdmin = token.isAdmin as boolean
       }
       return session
     },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.isAdmin = (user as any).isAdmin || false
       }
       return token
     },
