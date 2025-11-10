@@ -69,6 +69,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     exportData, 
     importData,
     exportCode,
+    updateCode,
     importCode, 
     editAbility, 
     deleteAbility, 
@@ -96,10 +97,23 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const currentCodeKey = `isekai-current-code-${userName}`
-      const currentCode = localStorage.getItem(currentCodeKey)
-      if (currentCode) {
-        setShareCode(currentCode)
+      let currentCode = localStorage.getItem(currentCodeKey)
+      
+      // Se não tem código, gerar um estável baseado no userName (mesma lógica do provider)
+      if (!currentCode) {
+        // Criar hash simples do userName para gerar código sempre igual
+        let hash = 0
+        for (let i = 0; i < userName.length; i++) {
+          const char = userName.charCodeAt(i)
+          hash = ((hash << 5) - hash) + char
+          hash = hash & hash // Convert to 32bit integer
+        }
+        // Garantir número positivo e converter para 8 dígitos
+        currentCode = Math.abs(hash).toString().padStart(8, '0').slice(-8)
+        localStorage.setItem(currentCodeKey, currentCode)
       }
+      
+      setShareCode(currentCode)
     }
   }, [userName])
 
@@ -244,12 +258,52 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     URL.revokeObjectURL(url)
   }
 
+  const handleUpdateCode = async () => {
+    setIsGeneratingCode(true)
+    try {
+      const code = await updateCode()
+      if (!code) {
+        addNotification({
+          type: "error",
+          title: "❌ Erro ao atualizar código",
+          description: "Ocorreu um erro ao atualizar o código. Tente novamente.",
+        })
+        return
+      }
+      
+      // Exibir código na interface (se ainda não estiver exibido)
+      if (!shareCode) {
+        setShareCode(code)
+      }
+      
+      // Mostrar notificação de sucesso
+      addNotification({
+        type: "success",
+        title: "✅ Código atualizado!",
+        description: `Seu código ${code} foi atualizado com os dados mais recentes.`,
+      })
+    } catch (error) {
+      console.error("Erro ao atualizar código:", error)
+      addNotification({
+        type: "error",
+        title: "❌ Erro ao atualizar código",
+        description: "Ocorreu um erro ao atualizar o código. Tente novamente.",
+      })
+    } finally {
+      setIsGeneratingCode(false)
+    }
+  }
+
   const handleExportCode = async () => {
     setIsGeneratingCode(true)
     try {
       const code = await exportCode()
       if (!code) {
-        alert("Erro ao gerar código. Tente novamente.")
+        addNotification({
+          type: "error",
+          title: "❌ Erro ao gerar código",
+          description: "Ocorreu um erro ao gerar o código. Tente novamente.",
+        })
         return
       }
       
@@ -278,8 +332,8 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       // Mostrar notificação de sucesso
       addNotification({
         type: "success",
-        title: "✅ Código gerado!",
-        description: `Código ${code} copiado para a área de transferência.`,
+        title: "✅ Novo código gerado!",
+        description: `Novo código ${code} gerado e copiado para a área de transferência.`,
       })
     } catch (error) {
       console.error("Erro ao gerar código:", error)
@@ -1616,15 +1670,24 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                   </Button>
                 )}
                 <Button
+                  onClick={handleUpdateCode}
+                  disabled={isGeneratingCode}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  title="Atualizar código atual com dados mais recentes"
+                >
+                  {isGeneratingCode ? "Atualizando..." : "Atualizar"}
+                </Button>
+                <Button
                   onClick={handleExportCode}
                   disabled={isGeneratingCode}
                   className="bg-purple-600 hover:bg-purple-700 text-white"
+                  title="Gerar um novo código (código anterior será invalidado)"
                 >
-                  {isGeneratingCode ? "Gerando..." : "Gerar Código"}
+                  {isGeneratingCode ? "Gerando..." : "Novo Código"}
                 </Button>
               </div>
               <p className="text-xs text-amber-300/60 font-serif">
-                Compartilhe este código de 8 dígitos para importar seu progresso em outro dispositivo
+                💡 Use "Atualizar" para manter o mesmo código atualizado ou "Novo Código" para gerar um novo
               </p>
             </div>
 

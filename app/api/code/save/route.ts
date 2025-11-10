@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
-    const { code, data, userName, oldCode } = await request.json()
+    const { code, data, userName, oldCode, updateOnly } = await request.json()
 
     // Validar código (8 dígitos)
     if (!code || !/^\d{8}$/.test(code)) {
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
 
     // Salvar ou atualizar código no banco
     try {
-      // Excluir todos os códigos antigos do mesmo usuário (baseado no nome no perfil)
-      if (userName) {
+      // Se for apenas atualização, não excluir códigos antigos
+      if (!updateOnly && userName) {
         try {
           // Buscar todos os códigos (exceto o atual)
           const allCodes = await prisma.shareCode.findMany({

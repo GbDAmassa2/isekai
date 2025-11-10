@@ -50,6 +50,7 @@ interface IsekaiContextType {
   exportData: () => string
   importData: (json: string) => boolean
   exportCode: () => Promise<string>
+  updateCode: () => Promise<string>
   importCode: (code: string) => Promise<boolean>
   addNotification: (notification: Omit<Notification, "id">) => void
   removeNotification: (id: string) => void
@@ -1220,7 +1221,21 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     }
   }
 
-  // Gerar código único de 8 dígitos
+  // Gerar código único de 8 dígitos baseado no userName (sempre o mesmo para o mesmo usuário)
+  const generateStableCode = (userName: string): string => {
+    // Criar hash simples do userName para gerar código sempre igual
+    let hash = 0
+    for (let i = 0; i < userName.length; i++) {
+      const char = userName.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32bit integer
+    }
+    // Garantir número positivo e converter para 8 dígitos
+    const code = Math.abs(hash).toString().padStart(8, '0').slice(-8)
+    return code
+  }
+
+  // Gerar código único de 8 dígitos aleatório (para novos códigos)
   const generate8DigitCode = (): string => {
     // Usar timestamp + random para garantir unicidade
     const timestamp = Date.now()
@@ -1239,14 +1254,74 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     return code
   }
 
-  // Gerar código de 8 dígitos e salvar progresso
+  // Atualizar código existente com dados atuais (mantém o mesmo código)
+  const updateCode = async (): Promise<string> => {
+    try {
+      // Buscar código atual do usuário (ou gerar um estável baseado no userName)
+      const currentCodeKey = `isekai-current-code-${userName}`
+      let code = localStorage.getItem(currentCodeKey)
+      
+      // Se não tem código, gerar um estável baseado no userName
+      if (!code) {
+        code = generateStableCode(userName)
+        localStorage.setItem(currentCodeKey, code)
+      }
+      
+      // Obter dados atuais do progresso
+      const data = {
+        profile: { ...profile, name: userName },
+        mangas,
+        abilities,
+        items,
+        titles,
+        collectedRewards,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      
+      // Salvar no localStorage
+      localStorage.setItem(`isekai-code-${code}`, JSON.stringify(data))
+      
+      // Atualizar no servidor
+      try {
+        const response = await fetch('/api/code/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            code, 
+            data, 
+            userName,
+            updateOnly: true // Flag para indicar que é apenas atualização
+          }),
+        })
+        
+        if (response.ok) {
+          console.log('✅ Código atualizado no servidor com sucesso')
+        } else {
+          console.warn('⚠️  Erro ao atualizar código no servidor')
+        }
+      } catch (serverError) {
+        console.warn('⚠️  Servidor não disponível, código atualizado apenas localmente')
+      }
+      
+      return code
+    } catch (error) {
+      console.error("Erro ao atualizar código:", error)
+      return ""
+    }
+  }
+
+  // Gerar código de 8 dígitos e salvar progresso (gera novo código)
   const exportCode = async (): Promise<string> => {
     try {
       // Buscar código antigo do usuário
       const oldCodeKey = `isekai-current-code-${userName}`
       const oldCode = localStorage.getItem(oldCodeKey) || null
       
-      // Gerar código único de 8 dígitos
+      // Gerar código único de 8 dígitos (novo código)
       let code = generate8DigitCode()
       
       // Obter dados atuais do progresso
@@ -1651,6 +1726,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         exportData,
         importData,
         exportCode,
+        updateCode,
         importCode,
         addNotification,
         removeNotification,
