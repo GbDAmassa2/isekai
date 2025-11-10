@@ -64,10 +64,18 @@ export default function SignUp() {
         router.push('/auth/signin?message=Cadastro realizado com sucesso!')
       } else {
         const data = await response.json()
-        setError(data.error || 'Erro ao cadastrar')
+        // Mostrar mensagem de erro mais detalhada
+        const errorMessage = data.error || data.details || 'Erro ao cadastrar'
+        setError(errorMessage)
+        
+        // Se for erro de configuração, mostrar dica
+        if (data.details && data.details.includes('DATABASE_URL')) {
+          setError('Erro de configuração do banco de dados. Verifique o arquivo .env.local')
+        }
       }
-    } catch (error) {
-      setError('Erro ao cadastrar. Tente novamente.')
+    } catch (error: any) {
+      console.error('Erro ao cadastrar:', error)
+      setError('Erro ao cadastrar. Verifique se o servidor está rodando e se o banco de dados está configurado.')
     } finally {
       setIsLoading(false)
     }

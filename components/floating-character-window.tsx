@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -42,7 +44,8 @@ import {
   Trophy,
   X,
   Search,
-  RefreshCw
+  RefreshCw,
+  Copy
 } from "lucide-react"
 import Image from "next/image"
 
@@ -56,7 +59,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const { 
     profile, 
     mangas, 
-    abilities, 
+    abilities,
     items, 
     titles, 
     removeManga, 
@@ -64,7 +67,9 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     addExperience, 
     removeExperience, 
     exportData, 
-    importData, 
+    importData,
+    exportCode,
+    importCode, 
     editAbility, 
     deleteAbility, 
     editItem, 
@@ -76,11 +81,27 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     updateMangaEpisode, 
     incrementEpisode, 
     decrementEpisode,
-    syncMangaRewards
+    syncMangaRewards,
+    addNotification
   } = useIsekai()
 
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [shareCode, setShareCode] = useState("")
+  const [importCodeValue, setImportCodeValue] = useState("")
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false)
+  const [isImportingCode, setIsImportingCode] = useState(false)
+
+  // Carregar código atual do usuário ao montar o componente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const currentCodeKey = `isekai-current-code-${userName}`
+      const currentCode = localStorage.getItem(currentCodeKey)
+      if (currentCode) {
+        setShareCode(currentCode)
+      }
+    }
+  }, [userName])
 
   // Minimizar automaticamente quando um modal é aberto
   const handleModalOpen = (modalType: string) => {
@@ -212,7 +233,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
 
   const handleExportData = () => {
     const data = exportData()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+    const blob = new Blob([data], { type: "application/json" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -221,6 +242,123 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+
+  const handleExportCode = async () => {
+    setIsGeneratingCode(true)
+    try {
+      const code = await exportCode()
+      if (!code) {
+        alert("Erro ao gerar código. Tente novamente.")
+        return
+      }
+      
+      // Exibir código na interface
+      setShareCode(code)
+      
+      // Copiar para a área de transferência automaticamente
+      try {
+        await navigator.clipboard.writeText(code)
+      } catch (clipboardError) {
+        // Fallback: copiar usando método alternativo
+        const textarea = document.createElement("textarea")
+        textarea.value = code
+        textarea.style.position = "fixed"
+        textarea.style.opacity = "0"
+        document.body.appendChild(textarea)
+        textarea.select()
+        try {
+          document.execCommand("copy")
+        } catch (e) {
+          console.error("Erro ao copiar código:", e)
+        }
+        document.body.removeChild(textarea)
+      }
+      
+      // Mostrar notificação de sucesso
+      addNotification({
+        type: "success",
+        title: "✅ Código gerado!",
+        description: `Código ${code} copiado para a área de transferência.`,
+      })
+    } catch (error) {
+      console.error("Erro ao gerar código:", error)
+      addNotification({
+        type: "error",
+        title: "❌ Erro ao gerar código",
+        description: "Ocorreu um erro ao gerar o código. Tente novamente.",
+      })
+    } finally {
+      setIsGeneratingCode(false)
+    }
+  }
+
+  const handleCopyCode = async () => {
+    if (!shareCode) return
+    
+    try {
+      await navigator.clipboard.writeText(shareCode)
+      addNotification({
+        type: "success",
+        title: "✅ Código copiado!",
+        description: `Código ${shareCode} copiado para a área de transferência.`,
+      })
+    } catch (error) {
+      // Fallback
+      const textarea = document.createElement("textarea")
+      textarea.value = shareCode
+      textarea.style.position = "fixed"
+      textarea.style.opacity = "0"
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+      addNotification({
+        type: "success",
+        title: "✅ Código copiado!",
+        description: `Código ${shareCode} copiado para a área de transferência.`,
+      })
+    }
+  }
+
+  const handleImportCode = async () => {
+    if (!importCodeValue.trim()) {
+      addNotification({
+        type: "error",
+        title: "❌ Código vazio",
+        description: "Digite um código de 8 dígitos para importar.",
+      })
+      return
+    }
+    
+    setIsImportingCode(true)
+    try {
+      const success = await importCode(importCodeValue.trim())
+      if (success) {
+        addNotification({
+          type: "success",
+          title: "✅ Progresso importado!",
+          description: "Seu progresso foi importado com sucesso.",
+        })
+        setImportCodeValue("") // Limpar campo
+      } else {
+        addNotification({
+          type: "error",
+          title: "❌ Código não encontrado",
+          description: "O código informado não foi encontrado. Verifique se está correto ou se expirou.",
+        })
+      }
+    } catch (error: any) {
+      // Isso não deveria acontecer, mas caso aconteça, tratamos aqui
+      console.warn("⚠️  Erro inesperado ao importar código:", error?.message || error)
+      addNotification({
+        type: "error",
+        title: "❌ Erro ao importar",
+        description: "Ocorreu um erro ao importar o código. Tente novamente.",
+      })
+    } finally {
+      setIsImportingCode(false)
+    }
   }
 
   const handleImportData = () => {
@@ -233,11 +371,14 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         const reader = new FileReader()
         reader.onload = (e) => {
           try {
-            const data = JSON.parse(e.target?.result as string)
-            importData(data)
-            alert("Dados importados com sucesso!")
+            const json = e.target?.result as string
+            if (importData(json)) {
+              alert("✅ Dados importados com sucesso!")
+            } else {
+              alert("❌ Erro ao importar dados. Verifique se o arquivo está correto.")
+            }
           } catch (error) {
-            alert("Erro ao importar dados. Verifique se o arquivo está correto.")
+            alert("❌ Erro ao importar dados. Verifique se o arquivo está correto.")
           }
         }
         reader.readAsText(file)
@@ -1452,22 +1593,94 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         </ModalSection>
 
         <ModalSection title="Gerenciamento de Dados" icon="💾">
+          {/* Área de Código de 8 dígitos */}
+          <div className="space-y-4 mb-4">
+            <div className="space-y-2">
+              <Label className="text-amber-200 font-serif">Seu Código de Compartilhamento</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={shareCode}
+                  readOnly
+                  placeholder="Clique em 'Gerar Código' para criar um código"
+                  className="bg-slate-700 border-amber-500/30 text-amber-100 font-mono text-lg text-center font-bold tracking-widest"
+                  maxLength={8}
+                />
+                {shareCode && (
+                  <Button
+                    onClick={handleCopyCode}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    size="icon"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                )}
+                <Button
+                  onClick={handleExportCode}
+                  disabled={isGeneratingCode}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {isGeneratingCode ? "Gerando..." : "Gerar Código"}
+                </Button>
+              </div>
+              <p className="text-xs text-amber-300/60 font-serif">
+                Compartilhe este código de 8 dígitos para importar seu progresso em outro dispositivo
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-amber-200 font-serif">Importar por Código</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={importCodeValue}
+                  onChange={(e) => setImportCodeValue(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  placeholder="Digite o código de 8 dígitos"
+                  className="bg-slate-700 border-amber-500/30 text-amber-100 font-mono text-lg text-center font-bold tracking-widest"
+                  maxLength={8}
+                />
+                <Button
+                  onClick={handleImportCode}
+                  disabled={isImportingCode || !importCodeValue.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isImportingCode ? "Importando..." : "Importar"}
+                </Button>
+              </div>
+              <p className="text-xs text-amber-300/60 font-serif">
+                Cole um código de 8 dígitos para importar o progresso
+              </p>
+            </div>
+          </div>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-amber-500/30"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-slate-800/50 px-2 text-amber-300/60 font-serif">
+                Ou use arquivos JSON
+              </span>
+            </div>
+          </div>
+
+          {/* Botões de JSON */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Button
                 onClick={handleExportData}
                 className="bg-green-600 hover:bg-green-700 text-white py-3 px-4 h-auto"
               >
                 <div className="text-xl mb-1">📥</div>
-                <div className="font-semibold text-sm">Exportar Progresso</div>
-                <div className="text-xs opacity-80">Salvar seus dados</div>
+                <div className="font-semibold text-sm">Exportar JSON</div>
+                <div className="text-xs opacity-80">Salvar arquivo</div>
               </Button>
               <Button
                 onClick={handleImportData}
                 className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 h-auto"
               >
                 <div className="text-xl mb-1">📤</div>
-                <div className="font-semibold text-sm">Importar Progresso</div>
-                <div className="text-xs opacity-80">Carregar dados salvos</div>
+                <div className="font-semibold text-sm">Importar JSON</div>
+                <div className="text-xs opacity-80">Carregar arquivo</div>
               </Button>
             </div>
             <div className="pt-3 border-t border-amber-500/20">

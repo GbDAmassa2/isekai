@@ -1,7 +1,10 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     Credentials({
       name: "Email",
@@ -23,23 +26,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (credentials?.email && credentials?.password) {
-          // Simulação de verificação de usuário
-          // Em produção, você consultaria o banco de dados
-          const mockUsers = [
-            { email: 'admin@test.com', password: '123456', name: 'Admin' },
-            { email: 'user@test.com', password: '123456', name: 'Usuário' }
-          ]
-          
-          const user = mockUsers.find(u => 
-            u.email === credentials.email && u.password === credentials.password
-          )
-          
-          if (user) {
+          try {
+            // Buscar usuário no banco de dados
+            const user = await prisma.user.findUnique({
+              where: { email: credentials.email as string }
+            })
+
+            if (!user) {
+              return null
+            }
+
+            // Verificar senha
+            const passwordMatch = await bcrypt.compare(
+              credentials.password as string,
+              user.password
+            )
+
+            if (!passwordMatch) {
+              return null
+            }
+
             return {
-              id: user.email,
+              id: user.id,
               email: user.email,
               name: user.name,
             }
+          } catch (error: any) {
+            console.error("Erro ao autenticar usuário:", error)
+            // Log mais detalhado em desenvolvimento
+            if (process.env.NODE_ENV === 'development') {
+              console.error("Detalhes do erro:", {
+                message: error?.message,
+                code: error?.code,
+                stack: error?.stack
+              })
+            }
+            return null
           }
         }
         return null

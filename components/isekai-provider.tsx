@@ -49,6 +49,8 @@ interface IsekaiContextType {
   decrementEpisode: (mangaId: string) => void
   exportData: () => string
   importData: (json: string) => boolean
+  exportCode: () => Promise<string>
+  importCode: (code: string) => Promise<boolean>
   addNotification: (notification: Omit<Notification, "id">) => void
   removeNotification: (id: string) => void
   clearCollectedRewards: () => void
@@ -111,6 +113,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     ]
   }
 
+  // Carregar dados do localStorage
   useEffect(() => {
     const userKey = `isekai-data-${userName}`
     const savedData = localStorage.getItem(userKey)
@@ -1217,6 +1220,210 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     }
   }
 
+  // Gerar código único de 8 dígitos
+  const generate8DigitCode = (): string => {
+    // Usar timestamp + random para garantir unicidade
+    const timestamp = Date.now()
+    const random = Math.floor(Math.random() * 100000)
+    // Combinar e pegar últimos 8 dígitos
+    // Usar módulo para garantir sempre 8 dígitos
+    const combined = (timestamp % 100000000) + (random % 100000)
+    const code = combined.toString().padStart(8, '0').slice(-8)
+    
+    // Garantir que seja exatamente 8 dígitos
+    if (code.length !== 8) {
+      // Se não for 8, usar apenas números aleatórios
+      return Math.floor(10000000 + Math.random() * 90000000).toString()
+    }
+    
+    return code
+  }
+
+  // Gerar código de 8 dígitos e salvar progresso
+  const exportCode = async (): Promise<string> => {
+    try {
+      // Buscar código antigo do usuário
+      const oldCodeKey = `isekai-current-code-${userName}`
+      const oldCode = localStorage.getItem(oldCodeKey) || null
+      
+      // Gerar código único de 8 dígitos
+      let code = generate8DigitCode()
+      
+      // Obter dados atuais do progresso
+      const data = {
+        profile: { ...profile, name: userName },
+        mangas,
+        abilities,
+        items,
+        titles,
+        collectedRewards,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+      }
+      
+      // Limpar código antigo do localStorage (se existir)
+      if (oldCode) {
+        try {
+          localStorage.removeItem(`isekai-code-${oldCode}`)
+          console.log(`Código antigo ${oldCode} removido do localStorage`)
+        } catch (error) {
+          console.warn('Erro ao remover código antigo do localStorage:', error)
+        }
+      }
+      
+      // Limpar todos os códigos antigos do localStorage do mesmo usuário
+      try {
+        // Buscar todas as chaves do localStorage que começam com 'isekai-code-'
+        const allKeys = Object.keys(localStorage)
+        const codeKeys = allKeys.filter(key => key.startsWith('isekai-code-'))
+        
+        // Verificar cada código e remover se for do mesmo usuário
+        codeKeys.forEach(key => {
+          try {
+            const savedData = localStorage.getItem(key)
+            if (savedData) {
+              const parsedData = JSON.parse(savedData)
+              if (parsedData.profile?.name === userName && key !== `isekai-code-${code}`) {
+                localStorage.removeItem(key)
+                console.log(`Código antigo removido: ${key}`)
+              }
+            }
+          } catch (error) {
+            // Ignorar erros ao processar códigos antigos
+          }
+        })
+      } catch (error) {
+        console.warn('Erro ao limpar códigos antigos do localStorage:', error)
+      }
+      
+      // Salvar novo código no localStorage
+      localStorage.setItem(`isekai-code-${code}`, JSON.stringify(data))
+      
+      // Salvar código atual no localStorage
+      localStorage.setItem(oldCodeKey, code)
+      
+      // Tentar salvar no servidor (sem bloquear se falhar)
+      try {
+        const response = await fetch('/api/code/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            code, 
+            data, 
+            userName,
+            oldCode: oldCode || undefined 
+          }),
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Código salvo no servidor com sucesso', result)
+        } else {
+          console.warn('Erro ao salvar código no servidor, usando apenas localStorage')
+        }
+      } catch (serverError) {
+        // Não falhar se o servidor não estiver disponível
+        console.warn('Servidor não disponível, código salvo apenas localmente:', serverError)
+      }
+      
+      return code
+    } catch (error) {
+      console.error("Erro ao gerar código:", error)
+      return ""
+    }
+  }
+
+  // Importar progresso a partir do código de 8 dígitos
+  const importCode = async (code: string): Promise<boolean> => {
+    try {
+      // Limpar código (remover espaços, hífens, etc)
+      const cleanedCode = code.trim().replace(/\D/g, '')
+      
+      // Validar que tem 8 dígitos
+      if (cleanedCode.length !== 8) {
+        console.warn("⚠️  Código deve ter exatamente 8 dígitos")
+        return false
+      }
+      
+      let data: any = null
+      
+      // Tentar buscar no servidor primeiro
+      try {
+        const response = await fetch(`/api/code/load?code=${cleanedCode}`)
+        const result = await response.json()
+        
+        if (response.ok && result.success && result.data) {
+          data = result.data
+          console.log('✅ Código carregado do servidor')
+        } else {
+          // Código não encontrado no servidor (404, expirado, etc)
+          console.log(`ℹ️  Código não encontrado no servidor: ${result.error || 'Código não existe'}`)
+        }
+      } catch (serverError) {
+        // Erro de rede ou servidor indisponível
+        console.log('⚠️  Servidor não disponível, tentando localStorage')
+      }
+      
+      // Se não encontrou no servidor, tentar localStorage
+      if (!data) {
+        try {
+          const savedData = localStorage.getItem(`isekai-code-${cleanedCode}`)
+          
+          if (!savedData) {
+            // Código não encontrado nem no servidor nem no localStorage
+            console.log('ℹ️  Código não encontrado no localStorage')
+            return false
+          }
+          
+          data = JSON.parse(savedData)
+          console.log('✅ Código carregado do localStorage')
+        } catch (parseError) {
+          console.warn('⚠️  Erro ao processar código do localStorage:', parseError)
+          return false
+        }
+      }
+      
+      // Validar estrutura
+      if (!data || typeof data !== "object") return false
+      if (!Array.isArray(data.mangas) || !Array.isArray(data.abilities) || !Array.isArray(data.items) || !Array.isArray(data.titles)) return false
+
+      // Importar dados
+      setProfile((prev) => ({ 
+        ...prev, 
+        ...(data.profile || {}), 
+        name: userName,
+        manualAttributes: data.profile?.manualAttributes || []
+      }))
+      setMangas(data.mangas)
+      setAbilities(data.abilities)
+      setItems(data.items)
+      
+      // Garantir que títulos importados sejam ativos por padrão
+      const titlesWithActive = data.titles.map((title: Title) => ({
+        ...title,
+        active: title.active !== undefined ? title.active : true
+      }))
+      setTitles(titlesWithActive)
+      
+      if (data.collectedRewards) {
+        setCollectedRewards(data.collectedRewards)
+      }
+      
+      // Forçar recálculo dos atributos após importação
+      setTimeout(() => {
+        setProfile(prev => ({ ...prev }))
+      }, 100)
+      
+      return true
+    } catch (error: any) {
+      // Erro geral ao importar código
+      console.warn("⚠️  Erro ao importar código:", error?.message || error)
+      return false
+    }
+  }
+
   const addNotification = (notification: Omit<Notification, "id">) => {
     const now = Date.now()
     
@@ -1443,6 +1650,8 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         decrementEpisode,
         exportData,
         importData,
+        exportCode,
+        importCode,
         addNotification,
         removeNotification,
         clearCollectedRewards,

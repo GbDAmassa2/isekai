@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// Simulação de banco de dados em memória
-// Em produção, você usaria um banco de dados real
-const users: Array<{ id: string; email: string; name: string; password: string }> = []
+import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +22,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se o email já existe
-    const existingUser = users.find(user => user.email === email)
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    })
+
     if (existingUser) {
       return NextResponse.json(
         { error: 'Este email já está cadastrado' },
@@ -32,24 +33,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Criar novo usuário
-    const newUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      password, // Em produção, você faria hash da senha
-    }
+    // Hash da senha
+    const hashedPassword = await bcrypt.hash(password, 10)
 
-    users.push(newUser)
+    // Criar novo usuário
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+      }
+    })
 
     return NextResponse.json(
       { message: 'Usuário cadastrado com sucesso', userId: newUser.id },
       { status: 201 }
     )
 
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Erro ao registrar usuário:', error)
+    
+    // Retornar mensagem de erro mais específica
+    let errorMessage = 'Erro interno do servidor'
+    
+    if (error?.code === 'P2002') {
+      errorMessage = 'Este email já está cadastrado'
+    } else if (error?.message?.includes('connect')) {
+      errorMessage = 'Erro de conexão com o banco de dados. Verifique se o banco está rodando.'
+    } else if (error?.message) {
+      errorMessage = error.message
+    }
+    
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: errorMessage, details: process.env.NODE_ENV === 'development' ? error?.message : undefined },
       { status: 500 }
     )
   }

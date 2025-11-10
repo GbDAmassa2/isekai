@@ -1,0 +1,67 @@
+═══════════════════════════════════════════════════════════════
+  ERRO 500 - SOLUÇÃO RÁPIDA
+═══════════════════════════════════════════════════════════════
+
+PROBLEMA:
+  O servidor está retornando erro 500 porque o arquivo .env.local
+  não existe ou não está configurado corretamente.
+
+SOLUÇÃO EM 3 PASSOS:
+═══════════════════════════════════════════════════════════════
+
+1. CRIAR ARQUIVO .env.local
+   
+   Crie um arquivo chamado ".env.local" na raiz do projeto com:
+   
+   DATABASE_URL="postgresql://postgres:SUA_SENHA@localhost:5432/isekai?schema=public"
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=qualquer-string-longa-e-aleatoria-123456789
+
+2. EXECUTAR MIGRATIONS
+   
+   npm run db:generate
+   npm run db:migrate
+
+3. REINICIAR SERVIDOR
+   
+   Pare o servidor (Ctrl+C) e inicie novamente:
+   npm run dev
+
+═══════════════════════════════════════════════════════════════
+
+OPÇÃO ALTERNATIVA: USAR SQLITE (MAIS SIMPLES)
+═══════════════════════════════════════════════════════════════
+
+Se você não tem PostgreSQL, pode usar SQLite:
+
+1. Edite prisma/schema.prisma e mude:
+   
+   datasource db {
+     provider = "sqlite"
+     url      = "file:./dev.db"
+   }
+
+2. Crie .env.local apenas com:
+   
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=qualquer-string-longa-e-aleatoria-123456789
+
+3. Execute:
+   npm run db:generate
+   npm run db:migrate
+   npm run dev
+
+═══════════════════════════════════════════════════════════════
+
+VERIFICAÇÃO:
+═══════════════════════════════════════════════════════════════
+
+Após configurar, acesse:
+- http://localhost:3000/auth/signup
+- Tente criar uma conta
+- Não deve mais aparecer erro 500
+
+═══════════════════════════════════════════════════════════════
+
+Mais detalhes em: SOLUCAO_ERRO_500.md
+

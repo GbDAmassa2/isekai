@@ -9,7 +9,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Seus modelos continuam os mesmos...
+// Modelo de Usuário
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // Hash da senha
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  progress  UserProgress?
+
+  @@map("users")
+}
+
+// Progresso do usuário (salvo no banco)
+model UserProgress {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Dados do perfil
+  profile          Json     // UserProfile completo
+  mangas           Json     // Array de Manga[]
+  abilities        Json     // Array de Ability[]
+  items            Json     // Array de Item[]
+  titles           Json     // Array de Title[]
+  collectedRewards Json     // Array de string[]
+  
+  // Metadata
+  lastSyncedAt     DateTime @default(now()) @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("user_progress")
+}
+
+// Códigos de compartilhamento (8 dígitos)
+model ShareCode {
+  id        String   @id @default(cuid())
+  code      String   @unique // Código de 8 dígitos
+  data      Json     // Dados do progresso
+  createdAt DateTime @default(now())
+  expiresAt DateTime // Código expira após 30 dias
+  
+  @@map("share_codes")
+  @@index([code])
+}
+
+// Recompensas de mangás (mantido como está)
 model MangaReward {
   id          String @id @default(cuid())
   mangaId     String

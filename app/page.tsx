@@ -31,7 +31,7 @@ export default function Home() {
     const trimmedUserName = userName.trim()
     localStorage.setItem("isekai-user-name", trimmedUserName)
     
-    // Se há dados para importar, fazer isso
+    // Se há dados JSON para importar, fazer isso
     if (importData.trim()) {
       try {
         const data = JSON.parse(importData)
@@ -47,6 +47,8 @@ export default function Home() {
       } catch (error) {
         console.error("Erro ao importar dados:", error)
         alert("Erro ao importar dados. Verifique se o arquivo está correto.")
+        setIsLoading(false)
+        return
       }
     }
     
@@ -125,6 +127,9 @@ export default function Home() {
               </div>
               <p className="text-xs text-amber-300/60 font-serif">
                 Selecione um arquivo JSON exportado anteriormente
+              </p>
+              <p className="text-xs text-amber-300/40 font-serif mt-2">
+                💡 Dica: Após entrar, use a área de código no dashboard para importar/exportar códigos de 8 dígitos!
               </p>
             </div>
 
