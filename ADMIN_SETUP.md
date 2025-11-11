@@ -19,12 +19,14 @@ A área secreta está disponível em: `http://localhost:3000/admin`
    - **Manga ID**: ID único do mangá (ex: `eleceed`, `lookism`)
    - **Título do Mangá**: Nome do mangá (ex: `Eleceed`, `Lookism`)
    - **Episódio**: Número do episódio (deve ser maior que 0)
-3. Preencha os campos opcionais (em formato JSON):
+3. **✨ Facilidade:** Os campos JSON (Abilities, Items, Titles, Attributes) já vêm pré-preenchidos com templates! Basta editar os valores que você precisa alterar (nomes, descrições, valores, etc.)
+4. Preencha os campos opcionais (em formato JSON):
    - **Experiência (XP)**: Quantidade de XP a ser concedida
-   - **Abilities**: Array de habilidades (formato JSON)
-   - **Items**: Array de itens (formato JSON)
-   - **Titles**: Array de títulos (formato JSON)
-   - **Attributes**: Objeto com atributos (formato JSON)
+   - **Abilities**: Array de habilidades (formato JSON) - **já vem com template pré-preenchido**
+   - **Items**: Array de itens (formato JSON) - **já vem com template pré-preenchido**
+   - **Titles**: Array de títulos (formato JSON) - **já vem com template pré-preenchido**
+   - **Attributes**: Objeto com atributos (formato JSON) - **já vem com template pré-preenchido**
+   - **Aliases / Nomes Alternativos**: Array de strings com nomes alternativos que podem ser usados para referenciar esta obra (ex: `["Solo Leveling", "나 혼자만 레벨업", "Solo Leveling Arise"]`)
 
 #### Editar Recompensa
 
@@ -99,6 +101,29 @@ A área secreta está disponível em: `http://localhost:3000/admin`
   "luck": 1
 }
 ```
+
+### Aliases / Nomes Alternativos
+
+```json
+[
+  "Nome Alternativo 1",
+  "Nome Alternativo 2",
+  "Outro Nome",
+  "Nome em Outro Idioma"
+]
+```
+
+**Exemplo prático:**
+```json
+[
+  "Solo Leveling",
+  "나 혼자만 레벨업",
+  "Solo Leveling Arise",
+  "Only I Level Up"
+]
+```
+
+Este campo permite definir vários nomes que a obra pode ter, facilitando a busca e referência da obra mesmo quando ela é conhecida por nomes diferentes.
 
 ## 🔒 Segurança
 

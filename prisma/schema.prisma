@@ -69,6 +69,7 @@ model MangaReward {
   items      Json?
   titles     Json?
   attributes Json?
+  aliases    Json?  // Array de strings com nomes alternativos da obra
 
   @@unique([mangaId, episode])
   @@map("manga_rewards")

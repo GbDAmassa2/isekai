@@ -38,14 +38,39 @@ export async function POST(request: NextRequest) {
 
     // LOG 2: Buscando no banco de dados (padronizado para minúsculas por compatibilidade com SQLite)
     const searchMangaId = mangaId.toLowerCase();
-    const searchMangaTitle = mangaTitle.toLowerCase();
+    const searchMangaTitle = mangaTitle.toLowerCase().trim().replace(/\s+/g, ' ');
     console.log(`[API SYNC] Buscando (normalizado) para mangaId='${searchMangaId}' ou mangaTitle='${searchMangaTitle}' até o episódio ${currentEpisode}`);
-    const rewardsFromDb = await prisma.mangaReward.findMany({
+    
+    // Construir query com busca por ID, título e aliases
+    const whereClause: any = {
+      OR: [
+        { mangaId: searchMangaId },
+        { 
+          mangaTitle: {
+            equals: searchMangaTitle,
+            mode: 'insensitive'
+          }
+        },
+      ],
+      episode: {
+        lte: currentEpisode,
+      },
+    };
+    
+    // Buscar primeiro por ID e título
+    let rewardsFromDb = await prisma.mangaReward.findMany({
+      where: whereClause,
+      orderBy: {
+        episode: 'asc',
+      },
+    });
+    
+    console.log(`[API SYNC] Encontrado ${rewardsFromDb.length} recompensa(s) por ID/título`);
+    
+    // SEMPRE buscar também por aliases (mesmo se encontrou por ID/título, para garantir)
+    // Isso permite que diferentes nomes encontrem a mesma recompensa
+    const allRewardsForAliasCheck = await prisma.mangaReward.findMany({
       where: {
-        OR: [
-          { mangaId: searchMangaId },
-          { mangaTitle: searchMangaTitle },
-        ],
         episode: {
           lte: currentEpisode,
         },
@@ -54,6 +79,44 @@ export async function POST(request: NextRequest) {
         episode: 'asc',
       },
     });
+    
+    // Filtrar por aliases e adicionar aos resultados (evitando duplicatas)
+    const rewardsByAlias = allRewardsForAliasCheck.filter(reward => {
+      // Pular se já está nos resultados
+      const alreadyFound = rewardsFromDb.some(r => r.id === reward.id)
+      if (alreadyFound) return false
+      
+      // Verificar aliases
+      if (!reward.aliases) return false
+      
+      let aliasesArray: string[] = []
+      try {
+        if (Array.isArray(reward.aliases)) {
+          aliasesArray = reward.aliases
+        } else if (typeof reward.aliases === 'string') {
+          aliasesArray = JSON.parse(reward.aliases)
+        } else {
+          aliasesArray = JSON.parse(JSON.stringify(reward.aliases))
+        }
+      } catch (e) {
+        console.error('[API SYNC] Erro ao parsear aliases:', e)
+        return false
+      }
+      
+      const found = aliasesArray.some((alias: string) => {
+        const normalizedAlias = alias.toLowerCase().trim().replace(/\s+/g, ' ')
+        return normalizedAlias === searchMangaTitle
+      })
+      
+      return found
+    });
+    
+    if (rewardsByAlias.length > 0) {
+      console.log(`[API SYNC] Encontrado ${rewardsByAlias.length} recompensa(s) adicional(is) por alias: "${searchMangaTitle}"`);
+      rewardsFromDb = [...rewardsFromDb, ...rewardsByAlias]
+      // Reordenar por episódio
+      rewardsFromDb.sort((a, b) => a.episode - b.episode)
+    }
 
     // LOG 3: O Prisma encontrou algo?
     console.log(`[API SYNC] Recompensas encontradas no DB: ${rewardsFromDb.length}`);

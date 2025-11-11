@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Shield, ArrowLeft } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Edit, Trash2, Shield, ArrowLeft, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface MangaReward {
@@ -24,6 +25,44 @@ interface MangaReward {
   items: any[] | null
   titles: any[] | null
   attributes: Record<string, number> | null
+  aliases: string[] | null
+}
+
+interface AbilityForm {
+  name: string
+  description: string
+  type: "active" | "passive"
+  level: number
+  category: "attack" | "defense" | "support" | "utility" | "special"
+  power: number
+  manaCost: number | ""
+  cooldown: number | ""
+}
+
+interface ItemForm {
+  name: string
+  description: string
+  type: "weapon" | "armor" | "accessory" | "consumable" | "material"
+  rarity: "common" | "uncommon" | "rare" | "epic" | "legendary"
+  effects: {
+    strength: number | ""
+    agility: number | ""
+    intelligence: number | ""
+    vitality: number | ""
+    luck: number | ""
+  }
+}
+
+interface TitleForm {
+  name: string
+  description: string
+  effects: {
+    strength: number | ""
+    agility: number | ""
+    intelligence: number | ""
+    vitality: number | ""
+    luck: number | ""
+  }
 }
 
 export default function AdminPage() {
@@ -33,18 +72,28 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingReward, setEditingReward] = useState<MangaReward | null>(null)
+  
+  // Form data com arrays de objetos ao invés de JSON strings
   const [formData, setFormData] = useState({
     mangaId: "",
     mangaTitle: "",
     episode: "",
     experience: "",
-    abilities: "",
-    items: "",
-    titles: "",
-    attributes: "",
+    abilities: [] as AbilityForm[],
+    items: [] as ItemForm[],
+    titles: [] as TitleForm[],
+    attributes: {
+      strength: "",
+      agility: "",
+      intelligence: "",
+      vitality: "",
+      luck: "",
+    },
+    aliases: [] as string[],
   })
+  const [newAlias, setNewAlias] = useState("")
 
-  // Carregar recompensas (área secreta - sem verificação de admin)
+  // Carregar recompensas
   useEffect(() => {
     loadRewards()
   }, [])
@@ -76,6 +125,43 @@ export default function AdminPage() {
     }
   }
 
+  const getDefaultAbility = (): AbilityForm => ({
+    name: "",
+    description: "",
+    type: "active",
+    level: 1,
+    category: "attack",
+    power: 4,
+    manaCost: "",
+    cooldown: "",
+  })
+
+  const getDefaultItem = (): ItemForm => ({
+    name: "",
+    description: "",
+    type: "weapon",
+    rarity: "rare",
+    effects: {
+      strength: "",
+      agility: "",
+      intelligence: "",
+      vitality: "",
+      luck: "",
+    }
+  })
+
+  const getDefaultTitle = (): TitleForm => ({
+    name: "",
+    description: "",
+    effects: {
+      strength: "",
+      agility: "",
+      intelligence: "",
+      vitality: "",
+      luck: "",
+    }
+  })
+
   const handleOpenDialog = (reward?: MangaReward) => {
     if (reward) {
       setEditingReward(reward)
@@ -84,10 +170,48 @@ export default function AdminPage() {
         mangaTitle: reward.mangaTitle,
         episode: reward.episode.toString(),
         experience: reward.experience?.toString() || "",
-        abilities: reward.abilities ? JSON.stringify(reward.abilities, null, 2) : "",
-        items: reward.items ? JSON.stringify(reward.items, null, 2) : "",
-        titles: reward.titles ? JSON.stringify(reward.titles, null, 2) : "",
-        attributes: reward.attributes ? JSON.stringify(reward.attributes, null, 2) : "",
+        abilities: (reward.abilities || []).map((a: any) => ({
+          name: a.name || "",
+          description: a.description || "",
+          type: a.type || "active",
+          level: a.level || 1,
+          category: a.category || "attack",
+          power: a.power || 0,
+          manaCost: a.manaCost || "",
+          cooldown: a.cooldown || "",
+        })),
+        items: (reward.items || []).map((i: any) => ({
+          name: i.name || "",
+          description: i.description || "",
+          type: i.type || "weapon",
+          rarity: i.rarity || "rare",
+          effects: {
+            strength: i.effects?.strength || "",
+            agility: i.effects?.agility || "",
+            intelligence: i.effects?.intelligence || "",
+            vitality: i.effects?.vitality || "",
+            luck: i.effects?.luck || "",
+          }
+        })),
+        titles: (reward.titles || []).map((t: any) => ({
+          name: t.name || "",
+          description: t.description || "",
+          effects: {
+            strength: t.effects?.strength || "",
+            agility: t.effects?.agility || "",
+            intelligence: t.effects?.intelligence || "",
+            vitality: t.effects?.vitality || "",
+            luck: t.effects?.luck || "",
+          }
+        })),
+        attributes: {
+          strength: reward.attributes?.strength?.toString() || "",
+          agility: reward.attributes?.agility?.toString() || "",
+          intelligence: reward.attributes?.intelligence?.toString() || "",
+          vitality: reward.attributes?.vitality?.toString() || "",
+          luck: reward.attributes?.luck?.toString() || "",
+        },
+        aliases: reward.aliases || [],
       })
     } else {
       setEditingReward(null)
@@ -96,10 +220,17 @@ export default function AdminPage() {
         mangaTitle: "",
         episode: "",
         experience: "",
-        abilities: "",
-        items: "",
-        titles: "",
-        attributes: "",
+        abilities: [],
+        items: [],
+        titles: [],
+        attributes: {
+          strength: "",
+          agility: "",
+          intelligence: "",
+          vitality: "",
+          luck: "",
+        },
+        aliases: [],
       })
     }
     setIsDialogOpen(true)
@@ -113,10 +244,113 @@ export default function AdminPage() {
       mangaTitle: "",
       episode: "",
       experience: "",
-      abilities: "",
-      items: "",
-      titles: "",
-      attributes: "",
+      abilities: [],
+      items: [],
+      titles: [],
+      attributes: {
+        strength: "",
+        agility: "",
+        intelligence: "",
+        vitality: "",
+        luck: "",
+      },
+      aliases: [],
+    })
+    setNewAlias("")
+  }
+
+  const addAbility = () => {
+    setFormData({
+      ...formData,
+      abilities: [...formData.abilities, getDefaultAbility()]
+    })
+  }
+
+  const removeAbility = (index: number) => {
+    setFormData({
+      ...formData,
+      abilities: formData.abilities.filter((_, i) => i !== index)
+    })
+  }
+
+  const updateAbility = (index: number, field: keyof AbilityForm, value: any) => {
+    const updated = [...formData.abilities]
+    updated[index] = { ...updated[index], [field]: value }
+    setFormData({ ...formData, abilities: updated })
+  }
+
+  const addItem = () => {
+    setFormData({
+      ...formData,
+      items: [...formData.items, getDefaultItem()]
+    })
+  }
+
+  const removeItem = (index: number) => {
+    setFormData({
+      ...formData,
+      items: formData.items.filter((_, i) => i !== index)
+    })
+  }
+
+  const updateItem = (index: number, field: keyof ItemForm, value: any) => {
+    const updated = [...formData.items]
+    updated[index] = { ...updated[index], [field]: value }
+    setFormData({ ...formData, items: updated })
+  }
+
+  const updateItemEffect = (index: number, effect: string, value: string) => {
+    const updated = [...formData.items]
+    updated[index] = {
+      ...updated[index],
+      effects: { ...updated[index].effects, [effect]: value }
+    }
+    setFormData({ ...formData, items: updated })
+  }
+
+  const addTitle = () => {
+    setFormData({
+      ...formData,
+      titles: [...formData.titles, getDefaultTitle()]
+    })
+  }
+
+  const removeTitle = (index: number) => {
+    setFormData({
+      ...formData,
+      titles: formData.titles.filter((_, i) => i !== index)
+    })
+  }
+
+  const updateTitle = (index: number, field: keyof TitleForm, value: any) => {
+    const updated = [...formData.titles]
+    updated[index] = { ...updated[index], [field]: value }
+    setFormData({ ...formData, titles: updated })
+  }
+
+  const updateTitleEffect = (index: number, effect: string, value: string) => {
+    const updated = [...formData.titles]
+    updated[index] = {
+      ...updated[index],
+      effects: { ...updated[index].effects, [effect]: value }
+    }
+    setFormData({ ...formData, titles: updated })
+  }
+
+  const addAlias = () => {
+    if (newAlias.trim()) {
+      setFormData({
+        ...formData,
+        aliases: [...formData.aliases, newAlias.trim()]
+      })
+      setNewAlias("")
+    }
+  }
+
+  const removeAlias = (index: number) => {
+    setFormData({
+      ...formData,
+      aliases: formData.aliases.filter((_, i) => i !== index)
     })
   }
 
@@ -124,7 +358,6 @@ export default function AdminPage() {
     e.preventDefault()
 
     try {
-      let response
       const payload: any = {
         mangaId: formData.mangaId.trim(),
         mangaTitle: formData.mangaTitle.trim(),
@@ -132,68 +365,89 @@ export default function AdminPage() {
         experience: formData.experience ? parseInt(formData.experience) : null,
       }
 
-      // Parse JSON fields
-      if (formData.abilities.trim()) {
-        try {
-          payload.abilities = JSON.parse(formData.abilities)
-        } catch {
-          toast({
-            title: "Erro",
-            description: "Formato JSON inválido no campo Abilities",
-            variant: "destructive"
-          })
-          return
-        }
+      // Converter abilities para formato JSON
+      const filteredAbilities = formData.abilities
+        .filter(a => a.name.trim())
+        .map(a => ({
+          name: a.name.trim(),
+          description: a.description.trim(),
+          type: a.type,
+          level: a.level,
+          category: a.category,
+          power: a.power,
+          ...(a.manaCost !== "" && a.manaCost !== null && { manaCost: Number(a.manaCost) }),
+          ...(a.cooldown !== "" && a.cooldown !== null && { cooldown: Number(a.cooldown) }),
+        }))
+      if (filteredAbilities.length > 0) {
+        payload.abilities = filteredAbilities
       }
 
-      if (formData.items.trim()) {
-        try {
-          payload.items = JSON.parse(formData.items)
-        } catch {
-          toast({
-            title: "Erro",
-            description: "Formato JSON inválido no campo Items",
-            variant: "destructive"
+      // Converter items para formato JSON
+      const filteredItems = formData.items
+        .filter(i => i.name.trim())
+        .map(i => {
+          const effects: Record<string, number> = {}
+          Object.entries(i.effects).forEach(([key, value]) => {
+            if (value !== "" && value !== null) {
+              effects[key] = Number(value)
+            }
           })
-          return
-        }
+          return {
+            name: i.name.trim(),
+            description: i.description.trim(),
+            type: i.type,
+            rarity: i.rarity,
+            ...(Object.keys(effects).length > 0 && { effects }),
+          }
+        })
+      if (filteredItems.length > 0) {
+        payload.items = filteredItems
       }
 
-      if (formData.titles.trim()) {
-        try {
-          payload.titles = JSON.parse(formData.titles)
-        } catch {
-          toast({
-            title: "Erro",
-            description: "Formato JSON inválido no campo Titles",
-            variant: "destructive"
+      // Converter titles para formato JSON
+      const filteredTitles = formData.titles
+        .filter(t => t.name.trim())
+        .map(t => {
+          const effects: Record<string, number> = {}
+          Object.entries(t.effects).forEach(([key, value]) => {
+            if (value !== "" && value !== null) {
+              effects[key] = Number(value)
+            }
           })
-          return
-        }
+          return {
+            name: t.name.trim(),
+            description: t.description.trim(),
+            ...(Object.keys(effects).length > 0 && { effects }),
+          }
+        })
+      if (filteredTitles.length > 0) {
+        payload.titles = filteredTitles
       }
 
-      if (formData.attributes.trim()) {
-        try {
-          payload.attributes = JSON.parse(formData.attributes)
-        } catch {
-          toast({
-            title: "Erro",
-            description: "Formato JSON inválido no campo Attributes",
-            variant: "destructive"
-          })
-          return
+      // Converter attributes para formato JSON
+      const attributes: Record<string, number> = {}
+      Object.entries(formData.attributes).forEach(([key, value]) => {
+        if (value !== "" && value !== null) {
+          attributes[key] = Number(value)
         }
+      })
+      if (Object.keys(attributes).length > 0) {
+        payload.attributes = attributes
       }
 
+      // Aliases
+      if (formData.aliases.length > 0) {
+        payload.aliases = formData.aliases
+      }
+
+      let response
       if (editingReward) {
-        // Atualizar
         response = await fetch("/api/rewards", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editingReward.id, ...payload })
         })
       } else {
-        // Criar
         response = await fetch("/api/rewards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -204,10 +458,18 @@ export default function AdminPage() {
       const data = await response.json()
 
       if (data.success) {
-        toast({
-          title: "Sucesso",
-          description: editingReward ? "Recompensa atualizada com sucesso!" : "Recompensa criada com sucesso!",
-        })
+        if (data.warning) {
+          toast({
+            title: "⚠️ Aviso",
+            description: data.message || "Recompensa criada, mas aliases não foram salvos. Execute a migration: npx prisma migrate dev",
+            variant: "default"
+          })
+        } else {
+          toast({
+            title: "Sucesso",
+            description: editingReward ? "Recompensa atualizada com sucesso!" : "Recompensa criada com sucesso!",
+          })
+        }
         handleCloseDialog()
         loadRewards()
       } else {
@@ -298,13 +560,14 @@ export default function AdminPage() {
                 Nova Recompensa
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-800 via-purple-800 to-indigo-800 border-2 border-amber-500/30">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-800 via-purple-800 to-indigo-800 border-2 border-amber-500/30">
               <DialogHeader>
                 <DialogTitle className="text-amber-200 font-serif text-2xl">
                   {editingReward ? "Editar Recompensa" : "Nova Recompensa"}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Campos básicos */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="mangaId" className="text-amber-200">Manga ID *</Label>
@@ -356,51 +619,380 @@ export default function AdminPage() {
                     />
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="abilities" className="text-amber-200">Abilities (JSON)</Label>
-                  <Textarea
-                    id="abilities"
-                    value={formData.abilities}
-                    onChange={(e) => setFormData({ ...formData, abilities: e.target.value })}
-                    placeholder='[{"name": "Electric Control", "description": "...", "type": "active", "level": 1, "category": "attack", "power": 4, "manaCost": 15, "cooldown": 45}]'
-                    rows={4}
-                    className="bg-slate-700/50 border-amber-500/30 text-white font-mono text-sm"
-                  />
+
+                {/* Abilities */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-amber-200 text-lg font-semibold">⚡ Habilidades</Label>
+                    <Button
+                      type="button"
+                      onClick={addAbility}
+                      size="sm"
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                  {formData.abilities.map((ability, index) => (
+                    <Card key={index} className="bg-slate-700/30 border-purple-500/30 p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="text-amber-200 font-semibold">Habilidade {index + 1}</h4>
+                        <Button
+                          type="button"
+                          onClick={() => removeAbility(index)}
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 space-y-0">
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm">Nome *</Label>
+                          <Input
+                            value={ability.name}
+                            onChange={(e) => updateAbility(index, "name", e.target.value)}
+                            placeholder="Nome da habilidade"
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm">Descrição</Label>
+                          <Textarea
+                            value={ability.description}
+                            onChange={(e) => updateAbility(index, "description", e.target.value)}
+                            placeholder="Descrição da habilidade"
+                            rows={2}
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Tipo</Label>
+                          <Select
+                            value={ability.type}
+                            onValueChange={(v) => updateAbility(index, "type", v)}
+                          >
+                            <SelectTrigger className="bg-slate-600/50 border-amber-500/30 text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="passive">Passive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Categoria</Label>
+                          <Select
+                            value={ability.category}
+                            onValueChange={(v) => updateAbility(index, "category", v)}
+                          >
+                            <SelectTrigger className="bg-slate-600/50 border-amber-500/30 text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="attack">Attack</SelectItem>
+                              <SelectItem value="defense">Defense</SelectItem>
+                              <SelectItem value="support">Support</SelectItem>
+                              <SelectItem value="utility">Utility</SelectItem>
+                              <SelectItem value="special">Special</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Level</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={ability.level}
+                            onChange={(e) => updateAbility(index, "level", parseInt(e.target.value) || 1)}
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Power</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={ability.power}
+                            onChange={(e) => updateAbility(index, "power", parseInt(e.target.value) || 0)}
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Mana Cost (opcional)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={ability.manaCost}
+                            onChange={(e) => updateAbility(index, "manaCost", e.target.value === "" ? "" : parseInt(e.target.value) || "")}
+                            placeholder="Opcional"
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Cooldown (opcional)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={ability.cooldown}
+                            onChange={(e) => updateAbility(index, "cooldown", e.target.value === "" ? "" : parseInt(e.target.value) || "")}
+                            placeholder="Opcional"
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-                <div>
-                  <Label htmlFor="items" className="text-amber-200">Items (JSON)</Label>
-                  <Textarea
-                    id="items"
-                    value={formData.items}
-                    onChange={(e) => setFormData({ ...formData, items: e.target.value })}
-                    placeholder='[{"name": "Sword", "description": "...", "type": "weapon", "rarity": "rare", "effects": {"strength": 5}}]'
-                    rows={4}
-                    className="bg-slate-700/50 border-amber-500/30 text-white font-mono text-sm"
-                  />
+
+                {/* Items */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-amber-200 text-lg font-semibold">🎒 Itens</Label>
+                    <Button
+                      type="button"
+                      onClick={addItem}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                  {formData.items.map((item, index) => (
+                    <Card key={index} className="bg-slate-700/30 border-blue-500/30 p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="text-amber-200 font-semibold">Item {index + 1}</h4>
+                        <Button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 space-y-0">
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm">Nome *</Label>
+                          <Input
+                            value={item.name}
+                            onChange={(e) => updateItem(index, "name", e.target.value)}
+                            placeholder="Nome do item"
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm">Descrição</Label>
+                          <Textarea
+                            value={item.description}
+                            onChange={(e) => updateItem(index, "description", e.target.value)}
+                            placeholder="Descrição do item"
+                            rows={2}
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Tipo</Label>
+                          <Select
+                            value={item.type}
+                            onValueChange={(v) => updateItem(index, "type", v)}
+                          >
+                            <SelectTrigger className="bg-slate-600/50 border-amber-500/30 text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="weapon">Weapon</SelectItem>
+                              <SelectItem value="armor">Armor</SelectItem>
+                              <SelectItem value="accessory">Accessory</SelectItem>
+                              <SelectItem value="consumable">Consumable</SelectItem>
+                              <SelectItem value="material">Material</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-amber-300 text-sm">Rarity</Label>
+                          <Select
+                            value={item.rarity}
+                            onValueChange={(v) => updateItem(index, "rarity", v)}
+                          >
+                            <SelectTrigger className="bg-slate-600/50 border-amber-500/30 text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="common">Common</SelectItem>
+                              <SelectItem value="uncommon">Uncommon</SelectItem>
+                              <SelectItem value="rare">Rare</SelectItem>
+                              <SelectItem value="epic">Epic</SelectItem>
+                              <SelectItem value="legendary">Legendary</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm mb-2 block">Efeitos (opcional)</Label>
+                          <div className="grid grid-cols-5 gap-2">
+                            {["strength", "agility", "intelligence", "vitality", "luck"].map((attr) => (
+                              <div key={attr}>
+                                <Label className="text-amber-300/80 text-xs capitalize">{attr}</Label>
+                                <Input
+                                  type="number"
+                                  value={item.effects[attr as keyof typeof item.effects]}
+                                  onChange={(e) => updateItemEffect(index, attr, e.target.value === "" ? "" : e.target.value)}
+                                  placeholder="0"
+                                  className="bg-slate-600/50 border-amber-500/30 text-white"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-                <div>
-                  <Label htmlFor="titles" className="text-amber-200">Titles (JSON)</Label>
-                  <Textarea
-                    id="titles"
-                    value={formData.titles}
-                    onChange={(e) => setFormData({ ...formData, titles: e.target.value })}
-                    placeholder='[{"name": "Hero", "description": "...", "effects": {"strength": 2, "intelligence": 3}}]'
-                    rows={4}
-                    className="bg-slate-700/50 border-amber-500/30 text-white font-mono text-sm"
-                  />
+
+                {/* Titles */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-amber-200 text-lg font-semibold">👑 Títulos</Label>
+                    <Button
+                      type="button"
+                      onClick={addTitle}
+                      size="sm"
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                  {formData.titles.map((title, index) => (
+                    <Card key={index} className="bg-slate-700/30 border-yellow-500/30 p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="text-amber-200 font-semibold">Título {index + 1}</h4>
+                        <Button
+                          type="button"
+                          onClick={() => removeTitle(index)}
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 space-y-0">
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm">Nome *</Label>
+                          <Input
+                            value={title.name}
+                            onChange={(e) => updateTitle(index, "name", e.target.value)}
+                            placeholder="Nome do título"
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm">Descrição</Label>
+                          <Textarea
+                            value={title.description}
+                            onChange={(e) => updateTitle(index, "description", e.target.value)}
+                            placeholder="Descrição do título"
+                            rows={2}
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-amber-300 text-sm mb-2 block">Efeitos (opcional)</Label>
+                          <div className="grid grid-cols-5 gap-2">
+                            {["strength", "agility", "intelligence", "vitality", "luck"].map((attr) => (
+                              <div key={attr}>
+                                <Label className="text-amber-300/80 text-xs capitalize">{attr}</Label>
+                                <Input
+                                  type="number"
+                                  value={title.effects[attr as keyof typeof title.effects]}
+                                  onChange={(e) => updateTitleEffect(index, attr, e.target.value === "" ? "" : e.target.value)}
+                                  placeholder="0"
+                                  className="bg-slate-600/50 border-amber-500/30 text-white"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-                <div>
-                  <Label htmlFor="attributes" className="text-amber-200">Attributes (JSON)</Label>
-                  <Textarea
-                    id="attributes"
-                    value={formData.attributes}
-                    onChange={(e) => setFormData({ ...formData, attributes: e.target.value })}
-                    placeholder='{"strength": 2, "intelligence": 3, "agility": 1}'
-                    rows={3}
-                    className="bg-slate-700/50 border-amber-500/30 text-white font-mono text-sm"
-                  />
+
+                {/* Attributes */}
+                <div className="space-y-3">
+                  <Label className="text-amber-200 text-lg font-semibold">📈 Atributos Diretos</Label>
+                  <Card className="bg-slate-700/30 border-green-500/30 p-4">
+                    <div className="grid grid-cols-5 gap-3">
+                      {["strength", "agility", "intelligence", "vitality", "luck"].map((attr) => (
+                        <div key={attr}>
+                          <Label className="text-amber-300 text-sm capitalize">{attr}</Label>
+                          <Input
+                            type="number"
+                            value={formData.attributes[attr as keyof typeof formData.attributes]}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              attributes: {
+                                ...formData.attributes,
+                                [attr]: e.target.value === "" ? "" : e.target.value
+                              }
+                            })}
+                            placeholder="0"
+                            className="bg-slate-600/50 border-amber-500/30 text-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
                 </div>
-                <div className="flex justify-end gap-2 pt-4">
+
+                {/* Aliases */}
+                <div className="space-y-3">
+                  <Label className="text-amber-200 text-lg font-semibold">🏷️ Aliases / Nomes Alternativos</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newAlias}
+                      onChange={(e) => setNewAlias(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addAlias())}
+                      placeholder="Digite um nome alternativo"
+                      className="bg-slate-700/50 border-amber-500/30 text-white"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addAlias}
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {formData.aliases.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.aliases.map((alias, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="border-amber-500/30 text-amber-200 bg-slate-700/50"
+                        >
+                          {alias}
+                          <button
+                            type="button"
+                            onClick={() => removeAlias(index)}
+                            className="ml-2 hover:text-red-400"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-amber-500/20">
                   <Button
                     type="button"
                     variant="outline"
@@ -547,4 +1139,3 @@ export default function AdminPage() {
     </div>
   )
 }
-

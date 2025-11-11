@@ -39,6 +39,10 @@ export async function POST(request: NextRequest) {
           mode: 'insensitive'
         }
       })
+      
+      // Buscar também por aliases (nomes alternativos)
+      // Nota: A busca por aliases será feita em memória após buscar por título/ID
+      // porque a sintaxe do Prisma para JSONB arrays pode variar
     }
 
     // Se episódio específico foi solicitado
@@ -46,12 +50,32 @@ export async function POST(request: NextRequest) {
       whereClause.episode = episode
     }
 
-    const rewards = await prisma.mangaReward.findMany({
+    let rewards = await prisma.mangaReward.findMany({
       where: whereClause,
       orderBy: {
         episode: 'asc'
       }
     })
+
+    // Se não encontrou por título/ID, buscar também por aliases
+    if (mangaTitle && rewards.length === 0) {
+      const normalizedTitle = mangaTitle.toLowerCase().trim().replace(/\s+/g, ' ')
+      const allRewards = await prisma.mangaReward.findMany({
+        where: episode !== undefined ? { episode } : {},
+        orderBy: { episode: 'asc' }
+      })
+      
+      // Filtrar em memória por aliases
+      rewards = allRewards.filter(reward => {
+        if (!reward.aliases) return false
+        const aliasesArray = Array.isArray(reward.aliases) 
+          ? reward.aliases 
+          : JSON.parse(JSON.stringify(reward.aliases))
+        return aliasesArray.some((alias: string) => 
+          alias.toLowerCase().trim().replace(/\s+/g, ' ') === normalizedTitle
+        )
+      })
+    }
 
     // Parse dos dados JSON e formatação da resposta
     const formattedRewards = rewards.map(reward => {
