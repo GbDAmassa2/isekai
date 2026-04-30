@@ -24,6 +24,7 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
   const [coverImage, setCoverImage] = useState("")
   const [url, setUrl] = useState("")
   const [currentEpisode, setCurrentEpisode] = useState<number>(0)
+  const [isPrivate, setIsPrivate] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [duplicateError, setDuplicateError] = useState("")
 
@@ -35,6 +36,7 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
       setCoverImage(manga.coverImage || "")
       setUrl(manga.url || "")
       setCurrentEpisode(manga.currentEpisode || 0)
+      setIsPrivate(Boolean(manga.isPrivate))
     }
   }, [manga])
 
@@ -82,6 +84,7 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
         coverImage: coverImage.trim() || undefined,
         url: url.trim() || undefined,
         currentEpisode: currentEpisode > 0 ? currentEpisode : undefined,
+        isPrivate,
       })
 
       setDuplicateError("")
@@ -172,6 +175,23 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
               placeholder="0"
               className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
             />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-amber-200 font-serif">Privacidade</Label>
+            <Button
+              type="button"
+              onClick={() => setIsPrivate((prev) => !prev)}
+              className={`w-full font-serif transition-all duration-200 ${
+                isPrivate
+                  ? "bg-purple-700 hover:bg-purple-800 text-white"
+                  : "bg-slate-700 hover:bg-slate-600 text-amber-100 border border-amber-500/30"
+              }`}
+            >
+              {isPrivate ? "🔒 Privado ativado" : "🔓 Privado desativado"}
+            </Button>
+            <p className="text-xs text-amber-300/70">
+              Quando ativado, este mangá ficará com blur e exigirá senha para ser exibido.
+            </p>
           </div>
           <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-serif hover:scale-105 transition-all duration-200 hover:shadow-lg hover:shadow-amber-500/30">
             ✨ Salvar Alterações

@@ -7,6 +7,7 @@ export interface Manga {
   coverImage?: string
   url?: string
   currentEpisode?: number
+  isPrivate?: boolean
 }
 
 export interface Ability {

@@ -45,7 +45,9 @@ import {
   X,
   Search,
   RefreshCw,
-  Copy
+  Copy,
+  Lock,
+  LockOpen
 } from "lucide-react"
 import Image from "next/image"
 
@@ -138,6 +140,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
   const [levelUpAnimation, setLevelUpAnimation] = useState(false)
   const [xpBarGlow, setXpBarGlow] = useState(false)
+  const [unlockedPrivateMangas, setUnlockedPrivateMangas] = useState<Set<string>>(new Set())
 
   const experienceToNextLevel = profile.level * 100
   const experienceProgress = (profile.experience / experienceToNextLevel) * 100
@@ -447,6 +450,73 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       window.location.href = "/"
     }
   }
+
+  const getPrivatePasswordKey = () => `isekai-private-manga-password-${userName}`
+
+  const handleUnlockPrivateManga = (mangaId: string) => {
+    if (typeof window === "undefined") return
+
+    const passwordKey = getPrivatePasswordKey()
+    const existingPassword = localStorage.getItem(passwordKey)
+
+    // Primeiro uso: pedir criação de senha
+    if (!existingPassword) {
+      const newPassword = window.prompt("Crie uma senha para desbloquear mangás privados:")
+      if (!newPassword) return
+
+      if (newPassword.length < 4) {
+        addNotification({
+          type: "error",
+          title: "❌ Senha fraca",
+          description: "Use pelo menos 4 caracteres.",
+        })
+        return
+      }
+
+      const confirmPassword = window.prompt("Confirme sua senha:")
+      if (newPassword !== confirmPassword) {
+        addNotification({
+          type: "error",
+          title: "❌ Senhas diferentes",
+          description: "As senhas não coincidem. Tente novamente.",
+        })
+        return
+      }
+
+      localStorage.setItem(passwordKey, newPassword)
+      addNotification({
+        type: "success",
+        title: "🔐 Senha criada!",
+        description: "Agora use a senha para desbloquear mangás privados.",
+      })
+    }
+
+    const savedPassword = localStorage.getItem(passwordKey)
+    const typedPassword = window.prompt("Digite a senha para remover o blur:")
+    if (!typedPassword) return
+
+    if (typedPassword !== savedPassword) {
+      addNotification({
+        type: "error",
+        title: "❌ Senha incorreta",
+        description: "Não foi possível desbloquear este mangá.",
+      })
+      return
+    }
+
+    setUnlockedPrivateMangas((prev) => {
+      const next = new Set(prev)
+      next.add(mangaId)
+      return next
+    })
+  }
+
+  // Sempre que sair da aba de mangás, travar novamente os mangás privados
+  useEffect(() => {
+    if (activeModal !== "mangas") {
+      setUnlockedPrivateMangas(new Set())
+    }
+  }, [activeModal])
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -1230,6 +1300,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         onClose={() => {
           setActiveModal(null)
           setIsMinimized(false)
+          setUnlockedPrivateMangas(new Set())
         }}
         title="Biblioteca"
         icon="📚"
@@ -1342,10 +1413,17 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                         manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase()) &&
                         (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
                       )
-                      .map((manga) => (
+                      .map((manga) => {
+                  const isPrivate = Boolean(manga.isPrivate)
+                  const isUnlocked = unlockedPrivateMangas.has(manga.id)
+                  const shouldBlur = isPrivate && !isUnlocked
+
+                  return (
                   <Card 
                     key={manga.id} 
-                    className="relative overflow-hidden bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300 cursor-pointer group"
+                    className={`relative overflow-hidden bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 transition-all duration-300 cursor-pointer group ${
+                      shouldBlur ? "" : "hover:scale-105"
+                    }`}
                   >
                     {manga.coverImage && (
                       <div className="absolute inset-0">
@@ -1361,20 +1439,29 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                       </div>
                     )}
                     
-                    <CardContent className="relative z-20 p-4 h-full flex flex-col justify-between min-h-[200px]">
+                    <CardContent className={`relative z-20 p-4 h-full flex flex-col justify-between min-h-[200px] ${shouldBlur ? "blur-md select-none" : ""}`}>
                       <div>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-white mb-1 truncate">{manga.title}</h4>
-                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
-                              {manga.type}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
+                                {manga.type}
+                              </Badge>
+                              {isPrivate && (
+                                <Badge variant="secondary" className="bg-purple-700/80 text-white border-purple-300/40 text-xs">
+                                  <Lock className="w-3 h-3 mr-1" />
+                                  Privado
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <div className={`flex gap-1 flex-shrink-0 ml-2 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300`}>
                             {manga.url && (
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                disabled={shouldBlur}
                                 onClick={() => window.open(manga.url, '_blank')}
                                 className={`text-white hover:bg-blue-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                                 title="Ir para o site"
@@ -1385,6 +1472,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={shouldBlur}
                               onClick={() => syncMangaRewards(manga.id).catch(console.error)}
                               className={`text-white hover:bg-green-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                               title="Sincronizar recompensas"
@@ -1394,6 +1482,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={shouldBlur}
                               onClick={() => {
                                 setMangaToEdit(manga)
                                 setEditMangaDialogOpen(true)
@@ -1406,6 +1495,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={shouldBlur}
                               onClick={() => removeManga(manga.id)}
                               className={`text-white hover:bg-red-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
                               title="Apagar mangá"
@@ -1428,6 +1518,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                disabled={shouldBlur}
                                 onClick={() => decrementEpisode(manga.id)}
                                 className={`${isMobile ? 'w-8 h-8' : 'w-6 h-6'} text-white hover:bg-red-500/30 hover:scale-110 transition-all duration-200`}
                                 title="Episódio anterior"
@@ -1437,6 +1528,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                disabled={shouldBlur}
                                 onClick={() => incrementEpisode(manga.id)}
                                 className={`${isMobile ? 'w-8 h-8' : 'w-6 h-6'} text-white hover:bg-green-500/30 hover:scale-110 transition-all duration-200`}
                                 title="Próximo episódio"
@@ -1449,6 +1541,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                       </div>
                       <Button
                         variant="outline"
+                        disabled={shouldBlur}
                         className="w-full bg-white/10 text-white border-white/30 hover:bg-white/20 text-xs"
                         onClick={() => {
                           setSelectedManga(manga.id)
@@ -1459,8 +1552,24 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                         Adicionar Conteúdo
                       </Button>
                     </CardContent>
+                    {shouldBlur && (
+                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/55 p-4">
+                        <div className="text-center">
+                          <p className="text-white font-semibold">Mangá privado</p>
+                          <p className="text-xs text-white/80">Desbloqueie com sua senha para remover o blur.</p>
+                        </div>
+                        <Button
+                          onClick={() => handleUnlockPrivateManga(manga.id)}
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          size="sm"
+                        >
+                          <LockOpen className="w-4 h-4 mr-2" />
+                          Desbloquear
+                        </Button>
+                      </div>
+                    )}
                   </Card>
-                ))}
+                )})}
               </div>
                 )}
               </>
