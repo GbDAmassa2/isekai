@@ -1425,21 +1425,22 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                       shouldBlur ? "" : "hover:scale-105"
                     }`}
                   >
-                    {manga.coverImage && (
-                      <div className="absolute inset-0">
-                        <Image
-                          key={`${manga.id}-${manga.coverImage}`}
-                          src={manga.coverImage || "/placeholder.svg"}
-                          alt={manga.title}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        />
-                        <div className="absolute inset-0 bg-black/50" />
-                      </div>
-                    )}
-                    
-                    <CardContent className={`relative z-20 p-4 h-full flex flex-col justify-between min-h-[200px] ${shouldBlur ? "blur-md select-none" : ""}`}>
+                    <div className={`h-full ${shouldBlur ? "blur-xl saturate-50 scale-[1.02] pointer-events-none select-none" : ""}`}>
+                      {manga.coverImage && (
+                        <div className="absolute inset-0">
+                          <Image
+                            key={`${manga.id}-${manga.coverImage}`}
+                            src={manga.coverImage || "/placeholder.svg"}
+                            alt={manga.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          />
+                          <div className="absolute inset-0 bg-black/50" />
+                        </div>
+                      )}
+                      
+                      <CardContent className="relative z-20 p-4 h-full flex flex-col justify-between min-h-[200px]">
                       <div>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0">
@@ -1551,9 +1552,10 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                         <Plus className="w-3 h-3 mr-1" />
                         Adicionar Conteúdo
                       </Button>
-                    </CardContent>
+                      </CardContent>
+                    </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/55 p-4">
+                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm p-4">
                         <div className="text-center">
                           <p className="text-white font-semibold">Mangá privado</p>
                           <p className="text-xs text-white/80">Desbloqueie com sua senha para remover o blur.</p>
