@@ -50,6 +50,7 @@ import {
   LockOpen
 } from "lucide-react"
 import Image from "next/image"
+import type { ReleaseWeekday } from "@/lib/isekai-types"
 
 interface FloatingCharacterWindowProps {
   userName: string
@@ -518,6 +519,53 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       setUnlockedPrivateMangas(new Set())
     }
   }, [activeModal])
+
+  const weekdayToNumber: Record<ReleaseWeekday, number> = {
+    domingo: 0,
+    segunda: 1,
+    terca: 2,
+    quarta: 3,
+    quinta: 4,
+    sexta: 5,
+    sabado: 6,
+  }
+
+  const countWeekdayOccurrences = (startDate: Date, endDate: Date, weekday: number) => {
+    if (endDate <= startDate) return 0
+
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+
+    const end = new Date(endDate)
+    end.setHours(0, 0, 0, 0)
+
+    const first = new Date(start)
+    first.setDate(start.getDate() + 1)
+
+    while (first <= end && first.getDay() !== weekday) {
+      first.setDate(first.getDate() + 1)
+    }
+
+    if (first > end) return 0
+
+    const diffDays = Math.floor((end.getTime() - first.getTime()) / (1000 * 60 * 60 * 24))
+    return Math.floor(diffDays / 7) + 1
+  }
+
+  const getRemainingEpisodes = (manga: any) => {
+    if (!manga.totalChapters || manga.totalChapters <= 0) return 0
+
+    let availableChapters = manga.totalChapters
+    const lastUpdated = manga.totalChaptersUpdatedAt || manga.dateAdded
+
+    if (manga.releaseWeekday && weekdayToNumber[manga.releaseWeekday as ReleaseWeekday] !== undefined && lastUpdated) {
+      const weeklyIncrements = countWeekdayOccurrences(new Date(lastUpdated), new Date(), weekdayToNumber[manga.releaseWeekday as ReleaseWeekday])
+      availableChapters += weeklyIncrements
+    }
+
+    const readChapters = manga.currentEpisode || 0
+    return Math.max(availableChapters - readChapters, 0)
+  }
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -1399,7 +1447,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
             ) : (
               <>
                 {mangas.filter((manga) => {
-                  const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : true
+                  const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : !Boolean(manga.isPrivate)
                   const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
                   const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
                   return matchesTab && matchesSearch && matchesType
@@ -1424,7 +1472,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                   <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                     {mangas
                       .filter((manga) => {
-                        const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : true
+                        const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : !Boolean(manga.isPrivate)
                         const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
                         const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
                         return matchesTab && matchesSearch && matchesType
@@ -1433,6 +1481,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                   const isPrivate = Boolean(manga.isPrivate)
                   const isUnlocked = unlockedPrivateMangas.has(manga.id)
                   const shouldBlur = isPrivate && !isUnlocked
+                  const remainingEpisodes = getRemainingEpisodes(manga)
 
                   return (
                   <Card 
@@ -1473,6 +1522,14 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                               )}
                             </div>
                           </div>
+                          {remainingEpisodes > 0 && (
+                            <div
+                              className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center border border-orange-200/40 shadow-md"
+                              title={`${remainingEpisodes} capítulo(s) faltando`}
+                            >
+                              {remainingEpisodes}
+                            </div>
+                          )}
                           <div className={`flex gap-1 flex-shrink-0 ml-2 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300`}>
                             {manga.url && (
                               <Button

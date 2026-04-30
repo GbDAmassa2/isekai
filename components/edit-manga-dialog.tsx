@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useIsekai } from "./isekai-provider"
 import { Upload } from "lucide-react"
-import type { Manga } from "@/lib/isekai-types"
+import type { Manga, ReleaseWeekday } from "@/lib/isekai-types"
 
 interface EditMangaDialogProps {
   open: boolean
@@ -24,6 +24,8 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
   const [coverImage, setCoverImage] = useState("")
   const [url, setUrl] = useState("")
   const [currentEpisode, setCurrentEpisode] = useState<number>(0)
+  const [totalChapters, setTotalChapters] = useState<number>(0)
+  const [releaseWeekday, setReleaseWeekday] = useState<ReleaseWeekday | "none">("none")
   const [isPrivate, setIsPrivate] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [duplicateError, setDuplicateError] = useState("")
@@ -36,6 +38,8 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
       setCoverImage(manga.coverImage || "")
       setUrl(manga.url || "")
       setCurrentEpisode(manga.currentEpisode || 0)
+      setTotalChapters(manga.totalChapters || 0)
+      setReleaseWeekday(manga.releaseWeekday || "none")
       setIsPrivate(Boolean(manga.isPrivate))
     }
   }, [manga])
@@ -77,6 +81,8 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
     setIsAnimating(false)
     
     setTimeout(() => {
+      const hasTotalChaptersChanged = (manga.totalChapters || 0) !== (totalChapters > 0 ? totalChapters : 0)
+
       // Atualizar o mangá usando a função do provider
       editManga(manga.id, {
         title: title.trim(),
@@ -85,6 +91,9 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
         url: url.trim() || undefined,
         currentEpisode: currentEpisode > 0 ? currentEpisode : undefined,
         isPrivate,
+        totalChapters: totalChapters > 0 ? totalChapters : undefined,
+        releaseWeekday: releaseWeekday === "none" ? undefined : releaseWeekday,
+        totalChaptersUpdatedAt: hasTotalChaptersChanged ? new Date().toISOString() : manga.totalChaptersUpdatedAt,
       })
 
       setDuplicateError("")
@@ -175,6 +184,36 @@ export function EditMangaDialog({ open, onOpenChange, manga }: EditMangaDialogPr
               placeholder="0"
               className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="totalChapters" className="text-amber-200 font-serif">📚 Total de Capítulos Atuais</Label>
+            <Input
+              id="totalChapters"
+              type="number"
+              min="0"
+              value={totalChapters}
+              onChange={(e) => setTotalChapters(parseInt(e.target.value) || 0)}
+              placeholder="Ex: 100"
+              className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="releaseWeekday" className="text-amber-200 font-serif">🗓️ Dia de Novo Episódio</Label>
+            <Select value={releaseWeekday} onValueChange={(v) => setReleaseWeekday(v as ReleaseWeekday | "none")}>
+              <SelectTrigger id="releaseWeekday" className="bg-slate-700 border-amber-500/30 text-amber-100 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200">
+                <SelectValue placeholder="Selecione um dia (opcional)" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-700 border-amber-500/30 text-amber-100">
+                <SelectItem value="none" className="hover:bg-slate-600 focus:bg-slate-600">Sem recorrência</SelectItem>
+                <SelectItem value="domingo" className="hover:bg-slate-600 focus:bg-slate-600">Domingo</SelectItem>
+                <SelectItem value="segunda" className="hover:bg-slate-600 focus:bg-slate-600">Segunda</SelectItem>
+                <SelectItem value="terca" className="hover:bg-slate-600 focus:bg-slate-600">Terça</SelectItem>
+                <SelectItem value="quarta" className="hover:bg-slate-600 focus:bg-slate-600">Quarta</SelectItem>
+                <SelectItem value="quinta" className="hover:bg-slate-600 focus:bg-slate-600">Quinta</SelectItem>
+                <SelectItem value="sexta" className="hover:bg-slate-600 focus:bg-slate-600">Sexta</SelectItem>
+                <SelectItem value="sabado" className="hover:bg-slate-600 focus:bg-slate-600">Sábado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label className="text-amber-200 font-serif">Privacidade</Label>

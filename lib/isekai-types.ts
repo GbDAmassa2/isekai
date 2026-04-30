@@ -1,3 +1,5 @@
+export type ReleaseWeekday = "domingo" | "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado"
+
 export interface Manga {
   id: string
   title: string
@@ -8,6 +10,9 @@ export interface Manga {
   url?: string
   currentEpisode?: number
   isPrivate?: boolean
+  totalChapters?: number
+  releaseWeekday?: ReleaseWeekday
+  totalChaptersUpdatedAt?: string
 }
 
 export interface Ability {
