@@ -135,8 +135,10 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [editMangaDialogOpen, setEditMangaDialogOpen] = useState(false)
   const [mangaToEdit, setMangaToEdit] = useState<any>(null)
   const [mangaViewTab, setMangaViewTab] = useState<"all" | "private">("all")
+  const [mangaDisplayMode, setMangaDisplayMode] = useState<"compact" | "cinematic">("cinematic")
   const [mangaSearchFilter, setMangaSearchFilter] = useState("")
   const [mangaTypeFilter, setMangaTypeFilter] = useState<"all" | "manga" | "manhwa" | "manhua">("all")
+  const [mangaProgressFilter, setMangaProgressFilter] = useState<"all" | "pending" | "upToDate">("all")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -566,6 +568,23 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     const readChapters = manga.currentEpisode || 0
     return Math.max(availableChapters - readChapters, 0)
   }
+
+  const visibleMangas = mangas.filter((manga) => {
+    const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : !Boolean(manga.isPrivate)
+    const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
+    const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
+    const remainingEpisodes = getRemainingEpisodes(manga)
+    const matchesProgress =
+      mangaProgressFilter === "all" ||
+      (mangaProgressFilter === "pending" && remainingEpisodes > 0) ||
+      (mangaProgressFilter === "upToDate" && remainingEpisodes === 0)
+
+    return matchesTab && matchesSearch && matchesType && matchesProgress
+  })
+
+  const totalPendingCount = mangas.filter((manga) => getRemainingEpisodes(manga) > 0).length
+  const upToDateCount = mangas.filter((manga) => getRemainingEpisodes(manga) === 0).length
+  const privateCount = mangas.filter((manga) => Boolean(manga.isPrivate)).length
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -1370,9 +1389,56 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               <Tabs value={mangaViewTab} onValueChange={(value) => setMangaViewTab(value as "all" | "private")}>
                 <TabsList className="bg-slate-700/60 border border-amber-500/30">
                   <TabsTrigger value="all">Todos</TabsTrigger>
-                  <TabsTrigger value="private">Privado</TabsTrigger>
+                  <TabsTrigger value="private">Privado ({privateCount})</TabsTrigger>
                 </TabsList>
               </Tabs>
+
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                <Button
+                  variant={mangaDisplayMode === "compact" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaDisplayMode("compact")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaDisplayMode === "compact"
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      : "bg-slate-700/50 border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20"
+                  } transition-all duration-200`}
+                >
+                  Compacto
+                </Button>
+                <Button
+                  variant={mangaDisplayMode === "cinematic" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaDisplayMode("cinematic")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaDisplayMode === "cinematic"
+                      ? "bg-fuchsia-600 hover:bg-fuchsia-700 text-white"
+                      : "bg-slate-700/50 border-fuchsia-500/40 text-fuchsia-200 hover:bg-fuchsia-500/20"
+                  } transition-all duration-200`}
+                >
+                  Cinematic
+                </Button>
+              </div>
+
+              {/* Mini dashboard */}
+              <div className={`grid gap-2 ${isMobile ? "grid-cols-2" : "grid-cols-4"}`}>
+                <div className="rounded-md border border-amber-500/30 bg-slate-700/40 p-2">
+                  <p className="text-[10px] text-amber-300/70">Visíveis</p>
+                  <p className="text-sm font-bold text-amber-100">{visibleMangas.length}</p>
+                </div>
+                <div className="rounded-md border border-orange-400/40 bg-orange-500/10 p-2">
+                  <p className="text-[10px] text-orange-300/80">Pendentes</p>
+                  <p className="text-sm font-bold text-orange-200">{totalPendingCount}</p>
+                </div>
+                <div className="rounded-md border border-green-400/40 bg-green-500/10 p-2">
+                  <p className="text-[10px] text-green-300/80">Em dia</p>
+                  <p className="text-sm font-bold text-green-200">{upToDateCount}</p>
+                </div>
+                <div className="rounded-md border border-purple-400/40 bg-purple-500/10 p-2">
+                  <p className="text-[10px] text-purple-300/80">Privados</p>
+                  <p className="text-sm font-bold text-purple-200">{privateCount}</p>
+                </div>
+              </div>
               
               {/* Campo de busca */}
               <div className="relative">
@@ -1437,6 +1503,46 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                   🇨🇳 Manhuas
                 </Button>
               </div>
+
+              {/* Filtro rápido de progresso */}
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                <Button
+                  variant={mangaProgressFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaProgressFilter("all")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaProgressFilter === "all"
+                      ? "bg-amber-600 hover:bg-amber-700 text-white"
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20"
+                  } transition-all duration-200`}
+                >
+                  Tudo
+                </Button>
+                <Button
+                  variant={mangaProgressFilter === "pending" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaProgressFilter("pending")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaProgressFilter === "pending"
+                      ? "bg-orange-600 hover:bg-orange-700 text-white"
+                      : "bg-slate-700/50 border-orange-500/40 text-orange-200 hover:bg-orange-500/20"
+                  } transition-all duration-200`}
+                >
+                  Pendentes
+                </Button>
+                <Button
+                  variant={mangaProgressFilter === "upToDate" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMangaProgressFilter("upToDate")}
+                  className={`text-xs px-3 py-1 ${
+                    mangaProgressFilter === "upToDate"
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-slate-700/50 border-green-500/40 text-green-200 hover:bg-green-500/20"
+                  } transition-all duration-200`}
+                >
+                  Em dia
+                </Button>
+              </div>
             </div>
             {mangas.length === 0 ? (
               <div className="text-center text-amber-300/60 py-8">
@@ -1446,12 +1552,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               </div>
             ) : (
               <>
-                {mangas.filter((manga) => {
-                  const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : !Boolean(manga.isPrivate)
-                  const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
-                  const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
-                  return matchesTab && matchesSearch && matchesType
-                }).length === 0 && (mangaSearchFilter || mangaTypeFilter !== "all" || mangaViewTab === "private") ? (
+                {visibleMangas.length === 0 && (mangaSearchFilter || mangaTypeFilter !== "all" || mangaViewTab === "private" || mangaProgressFilter !== "all") ? (
                   <div className="text-center text-amber-300/60 py-8">
                     <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>
@@ -1469,25 +1570,30 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                     <p className="text-sm">Tente ajustar os filtros ou buscar por outro termo</p>
                   </div>
                 ) : (
-                  <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-                    {mangas
-                      .filter((manga) => {
-                        const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : !Boolean(manga.isPrivate)
-                        const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
-                        const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
-                        return matchesTab && matchesSearch && matchesType
-                      })
-                      .map((manga) => {
+                  <div
+                    className={`grid gap-4 ${
+                      isMobile
+                        ? "grid-cols-1"
+                        : mangaDisplayMode === "cinematic"
+                        ? "grid-cols-1 md:grid-cols-2"
+                        : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                    }`}
+                  >
+                    {visibleMangas.map((manga) => {
                   const isPrivate = Boolean(manga.isPrivate)
                   const isUnlocked = unlockedPrivateMangas.has(manga.id)
                   const shouldBlur = isPrivate && !isUnlocked
                   const remainingEpisodes = getRemainingEpisodes(manga)
+                  const statusCardClass =
+                    remainingEpisodes > 0
+                      ? "border-orange-400/60 shadow-orange-500/20"
+                      : "border-green-400/50 shadow-green-500/20"
 
                   return (
                   <Card 
                     key={manga.id} 
-                    className={`relative overflow-hidden bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 transition-all duration-300 cursor-pointer group ${
-                      shouldBlur ? "" : "hover:scale-105"
+                    className={`relative overflow-hidden bg-slate-700/50 ${statusCardClass} shadow-lg transition-all duration-300 cursor-pointer group ${
+                      shouldBlur ? "" : mangaDisplayMode === "cinematic" ? "hover:scale-[1.02]" : "hover:scale-105"
                     }`}
                   >
                     <div className={`h-full ${shouldBlur ? "blur-xl saturate-50 scale-[1.02] pointer-events-none select-none" : ""}`}>
@@ -1498,14 +1604,26 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             src={manga.coverImage || "/placeholder.svg"}
                             alt={manga.title}
                             fill
-                            className="object-cover"
+                            className={`object-cover ${
+                              mangaDisplayMode === "cinematic" ? "scale-110" : ""
+                            } transition-transform duration-500`}
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
-                          <div className="absolute inset-0 bg-black/50" />
+                          <div
+                            className={`absolute inset-0 ${
+                              mangaDisplayMode === "cinematic"
+                                ? "bg-gradient-to-t from-black/80 via-black/35 to-black/10"
+                                : "bg-black/50"
+                            }`}
+                          />
                         </div>
                       )}
                       
-                      <CardContent className="relative z-20 p-4 h-full flex flex-col justify-between min-h-[200px]">
+                      <CardContent
+                        className={`relative z-20 p-4 h-full flex flex-col justify-between ${
+                          mangaDisplayMode === "cinematic" ? "min-h-[260px]" : "min-h-[200px]"
+                        }`}
+                      >
                       <div>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0">
@@ -1518,6 +1636,18 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                                 <Badge variant="secondary" className="bg-purple-700/80 text-white border-purple-300/40 text-xs">
                                   <Lock className="w-3 h-3 mr-1" />
                                   Privado
+                                </Badge>
+                              )}
+                              {!isPrivate && (
+                                <Badge
+                                  variant="secondary"
+                                  className={`text-xs ${
+                                    remainingEpisodes > 0
+                                      ? "bg-orange-600/80 text-white border-orange-300/40"
+                                      : "bg-green-600/80 text-white border-green-300/40"
+                                  }`}
+                                >
+                                  {remainingEpisodes > 0 ? "Pendente" : "Em dia"}
                                 </Badge>
                               )}
                             </div>
