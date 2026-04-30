@@ -133,6 +133,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [editAttributesDialogOpen, setEditAttributesDialogOpen] = useState(false)
   const [editMangaDialogOpen, setEditMangaDialogOpen] = useState(false)
   const [mangaToEdit, setMangaToEdit] = useState<any>(null)
+  const [mangaViewTab, setMangaViewTab] = useState<"all" | "private">("all")
   const [mangaSearchFilter, setMangaSearchFilter] = useState("")
   const [mangaTypeFilter, setMangaTypeFilter] = useState<"all" | "manga" | "manhwa" | "manhua">("all")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
@@ -1317,6 +1318,13 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                   Adicionar Manga
                 </Button>
               </div>
+
+              <Tabs value={mangaViewTab} onValueChange={(value) => setMangaViewTab(value as "all" | "private")}>
+                <TabsList className="bg-slate-700/60 border border-amber-500/30">
+                  <TabsTrigger value="all">Todos</TabsTrigger>
+                  <TabsTrigger value="private">Privado</TabsTrigger>
+                </TabsList>
+              </Tabs>
               
               {/* Campo de busca */}
               <div className="relative">
@@ -1331,7 +1339,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               </div>
               
               {/* Filtros por tipo */}
-              <div className={`flex gap-2 ${isMobile ? 'flex-wrap justify-center' : 'flex-wrap'}`}>
+              <div className={`flex gap-2 ${isMobile ? 'flex-wrap justify-center' : 'flex-wrap'} ${mangaViewTab === "private" ? "opacity-50 pointer-events-none" : ""}`}>
                 <Button
                   variant={mangaTypeFilter === "all" ? "default" : "outline"}
                   size="sm"
@@ -1390,29 +1398,37 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               </div>
             ) : (
               <>
-                {mangas.filter((manga) => 
-                  manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase()) &&
-                  (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
-                ).length === 0 && (mangaSearchFilter || mangaTypeFilter !== "all") ? (
+                {mangas.filter((manga) => {
+                  const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : true
+                  const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
+                  const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
+                  return matchesTab && matchesSearch && matchesType
+                }).length === 0 && (mangaSearchFilter || mangaTypeFilter !== "all" || mangaViewTab === "private") ? (
                   <div className="text-center text-amber-300/60 py-8">
                     <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>
-                      {mangaSearchFilter && mangaTypeFilter !== "all" 
+                      {mangaViewTab === "private"
+                        ? (mangaSearchFilter
+                          ? `Nenhum mangá privado encontrado para "${mangaSearchFilter}"`
+                          : "Nenhum mangá privado encontrado")
+                        : (mangaSearchFilter && mangaTypeFilter !== "all" 
                         ? `Nenhum ${mangaTypeFilter} encontrado para "${mangaSearchFilter}"`
                         : mangaSearchFilter 
                         ? `Nenhum mangá encontrado para "${mangaSearchFilter}"`
                         : `Nenhum ${mangaTypeFilter} encontrado`
-                      }
+                      )}
                     </p>
                     <p className="text-sm">Tente ajustar os filtros ou buscar por outro termo</p>
                   </div>
                 ) : (
                   <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                     {mangas
-                      .filter((manga) => 
-                        manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase()) &&
-                        (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
-                      )
+                      .filter((manga) => {
+                        const matchesTab = mangaViewTab === "private" ? Boolean(manga.isPrivate) : true
+                        const matchesSearch = manga.title.toLowerCase().includes(mangaSearchFilter.toLowerCase())
+                        const matchesType = mangaViewTab === "private" ? true : (mangaTypeFilter === "all" || manga.type.toLowerCase() === mangaTypeFilter)
+                        return matchesTab && matchesSearch && matchesType
+                      })
                       .map((manga) => {
                   const isPrivate = Boolean(manga.isPrivate)
                   const isUnlocked = unlockedPrivateMangas.has(manga.id)
@@ -1557,6 +1573,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                     {shouldBlur && (
                       <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm p-4">
                         <div className="text-center">
+                          <p className="text-amber-200 font-bold">{manga.title}</p>
                           <p className="text-white font-semibold">Mangá privado</p>
                           <p className="text-xs text-white/80">Desbloqueie com sua senha para remover o blur.</p>
                         </div>
