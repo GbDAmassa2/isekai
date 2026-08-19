@@ -1823,6 +1823,14 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                           />
                         </div>
                       )}
+                      {remainingEpisodes > 0 && (
+                        <div
+                          className="absolute top-3 right-3 z-30 min-w-7 h-7 rounded-full bg-orange-500 px-2 text-white text-xs font-bold flex items-center justify-center border border-orange-200/40 shadow-lg"
+                          title={`${remainingEpisodes} capítulo(s) faltando`}
+                        >
+                          {remainingEpisodes}
+                        </div>
+                      )}
                       
                       <CardContent
                         className={`relative z-20 p-4 h-full flex flex-col justify-between ${
@@ -1857,14 +1865,6 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                               )}
                             </div>
                           </div>
-                          {remainingEpisodes > 0 && (
-                            <div
-                              className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center border border-orange-200/40 shadow-md"
-                              title={`${remainingEpisodes} capítulo(s) faltando`}
-                            >
-                              {remainingEpisodes}
-                            </div>
-                          )}
                           <div className={`flex gap-1 flex-shrink-0 ml-2 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300`}>
                             {manga.url && (
                               <Button
