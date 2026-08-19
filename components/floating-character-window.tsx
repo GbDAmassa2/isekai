@@ -90,6 +90,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   } = useIsekai()
 
   const [activeModal, setActiveModal] = useState<string | null>(null)
+  const [showLibraryTestPopup, setShowLibraryTestPopup] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [shareCode, setShareCode] = useState("")
   const [importCodeValue, setImportCodeValue] = useState("")
@@ -125,6 +126,12 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     setActiveModal(modalType)
     setIsMinimized(true)
   }
+
+  // Exibe o pop-up de teste sempre que a seção Biblioteca for aberta.
+  useEffect(() => {
+    setShowLibraryTestPopup(activeModal === "mangas")
+  }, [activeModal])
+
   const [showAddManga, setShowAddManga] = useState(false)
   const [showAddContent, setShowAddContent] = useState(false)
   const [selectedManga, setSelectedManga] = useState<string | null>(null)
@@ -1781,6 +1788,27 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               </>
             )}
       </Modal>
+
+      {/* Pop-up temporário para validar a abertura da Biblioteca */}
+      <Dialog
+        open={activeModal === "mangas" && showLibraryTestPopup}
+        onOpenChange={setShowLibraryTestPopup}
+      >
+        <DialogContent className="bg-slate-800 border-amber-500/30 text-amber-100 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-amber-200 font-serif text-center">Teste</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center">
+            <p className="text-lg text-amber-100">teste</p>
+          </div>
+          <Button
+            onClick={() => setShowLibraryTestPopup(false)}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            Fechar
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Títulos */}
       <Modal

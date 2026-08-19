@@ -76,11 +76,11 @@ export async function seedEleceed(prisma: PrismaClient) {
     create: {
       mangaId: "eleceed",
       mangaTitle: "eleceed",
-      episode: 4
+      episode: 4,
       experience: 0,
       abilities: [
         {
-          name: "Electric Control3,
+          name: "Electric Control3",
           description: "Controle básico sobre eletricidade aprimorado",
           type: "active",
           level: 1,
