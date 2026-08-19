@@ -147,6 +147,8 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [itemRarityFilter, setItemRarityFilter] = useState("all")
   const [titleSearchFilter, setTitleSearchFilter] = useState("")
   const [titleStatusFilter, setTitleStatusFilter] = useState("all")
+  const [codexSearchFilter, setCodexSearchFilter] = useState("")
+  const [codexStatusFilter, setCodexStatusFilter] = useState("all")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -645,6 +647,42 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     )
   })
 
+  const codexEntries = mangas.map((manga) => {
+    const mangaAbilities = abilities.filter((ability) => ability.sources?.includes(manga.id))
+    const mangaItems = items.filter((item) => item.source === manga.id)
+    const mangaTitles = titles.filter((title) => title.source === manga.id)
+    const remainingEpisodes = getRemainingEpisodes(manga)
+
+    return {
+      manga,
+      abilities: mangaAbilities,
+      items: mangaItems,
+      titles: mangaTitles,
+      remainingEpisodes,
+      hasContent: mangaAbilities.length + mangaItems.length + mangaTitles.length > 0,
+    }
+  })
+
+  const normalizedCodexSearch = codexSearchFilter.trim().toLowerCase()
+  const filteredCodexEntries = codexEntries.filter((entry) => {
+    const searchableText = [
+      entry.manga.title,
+      entry.manga.type,
+      ...entry.abilities.map((ability) => `${ability.name} ${ability.description}`),
+      ...entry.items.map((item) => `${item.name} ${item.description}`),
+      ...entry.titles.map((title) => `${title.name} ${title.description}`),
+    ].join(" ").toLowerCase()
+
+    const matchesStatus =
+      codexStatusFilter === "all" ||
+      (codexStatusFilter === "pending" && entry.remainingEpisodes > 0) ||
+      (codexStatusFilter === "upToDate" && entry.remainingEpisodes === 0) ||
+      (codexStatusFilter === "withContent" && entry.hasContent) ||
+      (codexStatusFilter === "withoutContent" && !entry.hasContent)
+
+    return (!normalizedCodexSearch || searchableText.includes(normalizedCodexSearch)) && matchesStatus
+  })
+
   return (
     <div className="fixed top-4 right-4 z-50">
       {/* Level Up Overlay */}
@@ -896,6 +934,15 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
             >
               <Trophy className="w-4 h-4 mr-1 text-purple-400" />
               Títulos
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleModalOpen("codex")}
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
+            >
+              <Sparkles className="w-4 h-4 mr-1 text-indigo-300" />
+              Codex
             </Button>
             <Button
               variant="outline"
@@ -2079,6 +2126,179 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 ))}
               </div>
             )}
+      </Modal>
+
+      {/* Modal do Codex */}
+      <Modal
+        isOpen={activeModal === "codex"}
+        onClose={() => {
+          setActiveModal(null)
+          setIsMinimized(false)
+        }}
+        title="Codex"
+        icon="📖"
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex justify-between items-start gap-3">
+            <div>
+              <h3 className="text-amber-200 font-serif text-xl">Codex de Aventuras</h3>
+              <p className="text-sm text-amber-300/70">Tudo o que você desbloqueou em cada mangá.</p>
+            </div>
+            <Badge className="bg-indigo-600/80 text-indigo-100">
+              {filteredCodexEntries.length} de {mangas.length} mangás
+            </Badge>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Buscar por mangá ou conteúdo desbloqueado..."
+              value={codexSearchFilter}
+              onChange={(e) => setCodexSearchFilter(e.target.value)}
+              className="pl-10 bg-slate-700/50 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20"
+            />
+          </div>
+
+          <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+            {[
+              { value: "all", label: "Todos" },
+              { value: "pending", label: "Pendentes" },
+              { value: "upToDate", label: "Em dia" },
+              { value: "withContent", label: "Com conteúdo" },
+              { value: "withoutContent", label: "Sem conteúdo" },
+            ].map((filter) => (
+              <Button
+                key={filter.value}
+                variant={codexStatusFilter === filter.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCodexStatusFilter(filter.value)}
+                className={codexStatusFilter === filter.value
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                  : "bg-slate-700/50 border-indigo-500/30 text-indigo-200 hover:bg-indigo-500/20 text-xs"}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
+
+          {mangas.length === 0 ? (
+            <div className="text-center text-amber-300/60 py-10">
+              <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum mangá cadastrado no Codex.</p>
+              <p className="text-sm">Adicione uma obra na Biblioteca para começar a registrar sua aventura.</p>
+            </div>
+          ) : filteredCodexEntries.length === 0 ? (
+            <div className="text-center text-amber-300/60 py-10">
+              <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum registro encontrado.</p>
+              <p className="text-sm">Tente alterar a busca ou os filtros do Codex.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {filteredCodexEntries.map(({ manga, abilities: mangaAbilities, items: mangaItems, titles: mangaTitles, remainingEpisodes, hasContent }) => {
+                const currentEpisode = manga.currentEpisode || 0
+                const totalChapters = manga.totalChapters || 0
+                const progress = totalChapters > 0 ? Math.min(100, (currentEpisode / totalChapters) * 100) : 0
+                const mangaTypeLabel = manga.type === "manga" ? "Mangá" : manga.type === "manhwa" ? "Manhwa" : "Manhua"
+
+                return (
+                  <Card key={manga.id} className="bg-slate-700/50 border-indigo-500/30 shadow-lg shadow-purple-500/10">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex gap-4">
+                        <div className="relative w-20 h-28 flex-shrink-0 overflow-hidden rounded-md border border-indigo-400/40 bg-slate-800/80">
+                          {manga.coverImage ? (
+                            <img src={manga.coverImage} alt={`Capa de ${manga.title}`} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center">
+                              <BookOpen className="w-8 h-8 text-indigo-300/60" />
+                            </div>
+                          )}
+                          <div className={`absolute top-1 right-1 rounded-full px-2 py-1 text-[10px] font-bold shadow-lg ${remainingEpisodes > 0 ? "bg-orange-500 text-white" : "bg-emerald-500 text-white"}`}>
+                            {remainingEpisodes > 0 ? remainingEpisodes : "✓"}
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-amber-100 truncate">{manga.title}</h4>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                <Badge variant="outline" className="text-[10px] text-amber-200">{mangaTypeLabel}</Badge>
+                                <Badge className={remainingEpisodes > 0 ? "bg-orange-600 text-white text-[10px]" : "bg-emerald-600 text-white text-[10px]"}>
+                                  {remainingEpisodes > 0 ? "Pendente" : "Em dia"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <span className="text-xs text-amber-300/70 whitespace-nowrap">
+                              {remainingEpisodes > 0 ? `${remainingEpisodes} restantes` : "Concluído"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-amber-300/80">
+                            Capítulos: <strong className="text-amber-100">{currentEpisode}</strong> / {totalChapters > 0 ? totalChapters : "—"}
+                          </div>
+                          <Progress value={progress} className="h-2 bg-slate-600" />
+                          <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                            <div className="rounded bg-amber-500/10 p-1 text-amber-200">{mangaAbilities.length} habilidades</div>
+                            <div className="rounded bg-blue-500/10 p-1 text-blue-200">{mangaItems.length} itens</div>
+                            <div className="rounded bg-purple-500/10 p-1 text-purple-200">{mangaTitles.length} títulos</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                          <h5 className="text-sm font-semibold text-amber-200 mb-2">Habilidades</h5>
+                          {mangaAbilities.length === 0 ? (
+                            <p className="text-xs text-amber-300/50">Nenhuma desbloqueada.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {mangaAbilities.map((ability) => (
+                                <Badge key={ability.id} className="bg-amber-600/70 text-[10px]">{ability.name}</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                          <h5 className="text-sm font-semibold text-blue-200 mb-2">Itens</h5>
+                          {mangaItems.length === 0 ? (
+                            <p className="text-xs text-blue-300/50">Nenhum desbloqueado.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {mangaItems.map((item) => (
+                                <Badge key={item.id} className="bg-blue-600/70 text-[10px]">
+                                  {item.name} · {itemRarityLabels[item.rarity] || item.rarity}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3">
+                          <h5 className="text-sm font-semibold text-purple-200 mb-2">Títulos</h5>
+                          {mangaTitles.length === 0 ? (
+                            <p className="text-xs text-purple-300/50">Nenhum desbloqueado.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {mangaTitles.map((title) => (
+                                <Badge key={title.id} className={title.active ? "bg-purple-600/70 text-[10px]" : "bg-slate-600 text-[10px]"}>
+                                  {title.name}{title.active ? " · Ativo" : ""}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {!hasContent && (
+                        <p className="text-center text-xs text-indigo-200/60">Leia mais capítulos para desbloquear conteúdo neste mangá.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* Modal de Configurações */}
