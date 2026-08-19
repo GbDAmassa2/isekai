@@ -58,16 +58,6 @@ interface FloatingCharacterWindowProps {
   userName: string
 }
 
-function getSafeExternalUrl(value?: string) {
-  if (!value) return null
-  try {
-    const parsed = new URL(value.trim())
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : null
-  } catch {
-    return null
-  }
-}
-
 export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowProps) {
   const isMobile = useIsMobile()
   
@@ -168,8 +158,6 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [codexSearchFilter, setCodexSearchFilter] = useState("")
   const [codexStatusFilter, setCodexStatusFilter] = useState("all")
   const [missionTypeFilter, setMissionTypeFilter] = useState<"all" | "daily" | "weekly" | "journey">("all")
-  const [readingMangaId, setReadingMangaId] = useState<string | null>(null)
-  const [readingMode, setReadingMode] = useState<"guide" | "embed">("guide")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -716,8 +704,6 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const totalReadChapters = mangas.reduce((total, manga) => total + (manga.currentEpisode || 0), 0)
   const readingDays = new Set(readingActivities.map((activity) => activity.date)).size
   const nextMission = missions.find((mission) => !mission.completed)
-  const readingManga = mangas.find((manga) => manga.id === readingMangaId)
-  const readingUrl = getSafeExternalUrl(readingManga?.url)
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -1911,22 +1897,6 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             </div>
                           </div>
                           <div className={`flex gap-1 flex-shrink-0 ml-2 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300`}>
-                            {getSafeExternalUrl(manga.url) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={shouldBlur}
-                                onClick={() => {
-                                  setReadingMangaId(manga.id)
-                                  setReadingMode("embed")
-                                  handleModalOpen("reading")
-                                }}
-                                className={`text-white hover:bg-violet-600/30 bg-black/20 hover:scale-110 transition-all duration-200 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'}`}
-                                title="Abrir área de leitura"
-                              >
-                                <BookOpen className={isMobile ? 'w-3 h-3' : 'w-3 h-3'} />
-                              </Button>
-                            )}
                             {manga.url && (
                               <Button
                                 variant="ghost"
@@ -2046,138 +2016,6 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                 )}
               </>
             )}
-      </Modal>
-
-      {/* Modal da Área de Leitura */}
-      <Modal
-        isOpen={activeModal === "reading"}
-        onClose={() => {
-          setActiveModal(null)
-          setReadingMangaId(null)
-          setReadingMode("guide")
-          setIsMinimized(false)
-        }}
-        title={readingManga ? `Área de Leitura · ${readingManga.title}` : "Área de Leitura"}
-        icon="📖"
-        size="xl"
-        className="bg-slate-950/95"
-      >
-        {!readingManga || !readingUrl ? (
-          <div className="rounded-xl border border-dashed border-amber-400/30 bg-slate-900/60 p-8 text-center">
-            <BookOpen className="mx-auto mb-3 h-10 w-10 text-amber-300/60" />
-            <h3 className="text-lg font-bold text-amber-100">Nenhum endereço de leitura válido</h3>
-            <p className="mt-2 text-sm text-amber-200/70">Adicione um link HTTP ou HTTPS ao mangá para abrir esta área.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-xl border border-violet-400/30 bg-gradient-to-r from-violet-950/70 via-slate-900/80 to-indigo-950/70 p-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-violet-600/80 text-white">{readingManga.type}</Badge>
-                  <Badge variant="outline" className="border-amber-300/30 text-amber-200">Capítulo {readingManga.currentEpisode || 0}</Badge>
-                  {getRemainingEpisodes(readingManga) > 0 && (
-                    <Badge className="bg-orange-600/80 text-white">{getRemainingEpisodes(readingManga)} restantes</Badge>
-                  )}
-                </div>
-                <p className="mt-2 truncate text-xs text-violet-200/60" title={readingUrl}>{readingUrl}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => window.open(readingUrl, "_blank", "noopener,noreferrer")}
-                  className="bg-violet-600 text-white hover:bg-violet-700"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Abrir site
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => incrementEpisode(readingManga.id)}
-                  className="border-green-400/30 text-green-200 hover:bg-green-500/10"
-                >
-                  <ChevronUp className="mr-1 h-4 w-4" />
-                  Marcar próximo capítulo
-                </Button>
-              </div>
-            </div>
-
-            {readingMode === "embed" ? (
-              <div className="space-y-3">
-                <div className="overflow-hidden rounded-xl border border-violet-400/30 bg-black shadow-2xl">
-                  <iframe
-                    src={readingUrl}
-                    title={`Leitor externo de ${readingManga.title}`}
-                    className="h-[58vh] min-h-[360px] w-full bg-white"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    allowFullScreen
-                    sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-presentation allow-same-origin allow-scripts"
-                  />
-                </div>
-                <div className="flex flex-col gap-3 rounded-lg border border-amber-400/20 bg-amber-500/10 p-3 text-sm text-amber-100 md:flex-row md:items-center md:justify-between">
-                  <p>
-                    Se o quadro aparecer vazio, o site bloqueou incorporação externa. Isso é uma regra de segurança do próprio site, não um erro do Isekai.
-                  </p>
-                  <div className="flex shrink-0 gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setReadingMode("guide")}
-                      className="border-amber-300/30 text-amber-100 hover:bg-amber-500/10"
-                    >
-                      Ver instruções
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => window.open(readingUrl, "_blank", "noopener,noreferrer")}
-                      className="bg-amber-600 text-white hover:bg-amber-700"
-                    >
-                      Abrir em nova aba
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
-                <div className="rounded-xl border border-indigo-400/30 bg-indigo-950/40 p-6">
-                  <BookOpen className="mb-3 h-10 w-10 text-indigo-300" />
-                  <h3 className="text-xl font-bold text-indigo-100">Sua leitura começa aqui</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-indigo-200/75">
-                    O Isekai não copia nem retransmite o conteúdo. Ele mantém sua jornada, o progresso e as recompensas enquanto você lê no endereço que cadastrou.
-                  </p>
-                  <Button
-                    onClick={() => window.open(readingUrl, "_blank", "noopener,noreferrer")}
-                    className="mt-5 bg-indigo-600 text-white hover:bg-indigo-700"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Abrir {readingManga.title}
-                  </Button>
-                </div>
-                <div className="space-y-3 rounded-xl border border-amber-400/20 bg-slate-900/60 p-4">
-                  <h4 className="font-semibold text-amber-100">Depois de ler</h4>
-                  <p className="text-sm text-amber-200/70">Marque o próximo capítulo para atualizar XP, missões diárias, Jornadas e o Codex.</p>
-                  <Button
-                    onClick={() => incrementEpisode(readingManga.id)}
-                    className="w-full bg-green-600 text-white hover:bg-green-700"
-                  >
-                    <ChevronUp className="mr-2 h-4 w-4" />
-                    Marcar próximo capítulo
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setReadingMode("embed")}
-                    className="w-full border-violet-400/30 text-violet-200 hover:bg-violet-500/10"
-                  >
-                    Tentar leitura dentro do Isekai
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-3 text-xs text-slate-300">
-              <strong className="text-slate-100">Compatibilidade:</strong> alguns sites permitem a leitura incorporada; outros bloqueiam iframe com políticas próprias. Quando isso acontecer, use <strong className="text-amber-200">Abrir site</strong> para ler na aba oficial, sem qualquer bypass de segurança.
-            </div>
-          </div>
-        )}
       </Modal>
 
       {/* Modal de Títulos */}

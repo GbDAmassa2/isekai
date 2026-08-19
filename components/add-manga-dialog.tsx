@@ -147,15 +147,14 @@ export function AddMangaDialog({ open, onOpenChange }: AddMangaDialogProps) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="url" className="text-amber-200 font-serif">📖 Link da Área de Leitura (opcional)</Label>
+            <Label htmlFor="url" className="text-amber-200 font-serif">🔗 Link do Site (opcional)</Label>
             <Input
               id="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://exemplo.com/manga/..."
+              placeholder="https://mangadex.org/title/..."
               className="bg-slate-700 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
             />
-            <p className="text-xs text-amber-300/60">O site pode abrir em nova aba ou bloquear a incorporação interna.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="currentEpisode" className="text-amber-200 font-serif">📖 Episódio Atual (opcional)</Label>
