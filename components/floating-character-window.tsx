@@ -139,6 +139,14 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [mangaSearchFilter, setMangaSearchFilter] = useState("")
   const [mangaTypeFilter, setMangaTypeFilter] = useState<"all" | "manga" | "manhwa" | "manhua">("all")
   const [mangaProgressFilter, setMangaProgressFilter] = useState<"all" | "pending" | "upToDate">("all")
+  const [abilitySearchFilter, setAbilitySearchFilter] = useState("")
+  const [abilityTypeFilter, setAbilityTypeFilter] = useState("all")
+  const [abilityCategoryFilter, setAbilityCategoryFilter] = useState("all")
+  const [itemSearchFilter, setItemSearchFilter] = useState("")
+  const [itemTypeFilter, setItemTypeFilter] = useState("all")
+  const [itemRarityFilter, setItemRarityFilter] = useState("all")
+  const [titleSearchFilter, setTitleSearchFilter] = useState("")
+  const [titleStatusFilter, setTitleStatusFilter] = useState("all")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -585,6 +593,57 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const totalPendingCount = mangas.filter((manga) => getRemainingEpisodes(manga) > 0).length
   const upToDateCount = mangas.filter((manga) => getRemainingEpisodes(manga) === 0).length
   const privateCount = mangas.filter((manga) => Boolean(manga.isPrivate)).length
+
+  const abilityCategoryLabels: Record<string, string> = {
+    attack: "Ataque",
+    defense: "Defesa",
+    support: "Suporte",
+    utility: "Utilidade",
+    special: "Especial",
+  }
+  const itemTypeLabels: Record<string, string> = {
+    weapon: "Arma",
+    armor: "Armadura",
+    accessory: "Acessório",
+    consumable: "Consumível",
+    material: "Material",
+  }
+  const itemRarityLabels: Record<string, string> = {
+    common: "Comum",
+    uncommon: "Incomum",
+    rare: "Raro",
+    epic: "Épico",
+    legendary: "Lendário",
+  }
+
+  const normalizedAbilitySearch = abilitySearchFilter.trim().toLowerCase()
+  const filteredAbilities = abilities.filter((ability) => {
+    const searchableText = `${ability.name} ${ability.description}`.toLowerCase()
+    return (
+      (!normalizedAbilitySearch || searchableText.includes(normalizedAbilitySearch)) &&
+      (abilityTypeFilter === "all" || ability.type === abilityTypeFilter) &&
+      (abilityCategoryFilter === "all" || ability.category === abilityCategoryFilter)
+    )
+  })
+
+  const normalizedItemSearch = itemSearchFilter.trim().toLowerCase()
+  const filteredItems = items.filter((item) => {
+    const searchableText = `${item.name} ${item.description}`.toLowerCase()
+    return (
+      (!normalizedItemSearch || searchableText.includes(normalizedItemSearch)) &&
+      (itemTypeFilter === "all" || item.type === itemTypeFilter) &&
+      (itemRarityFilter === "all" || item.rarity === itemRarityFilter)
+    )
+  })
+
+  const normalizedTitleSearch = titleSearchFilter.trim().toLowerCase()
+  const filteredTitles = titles.filter((title) => {
+    const searchableText = `${title.name} ${title.description}`.toLowerCase()
+    return (
+      (!normalizedTitleSearch || searchableText.includes(normalizedTitleSearch)) &&
+      (titleStatusFilter === "all" || (titleStatusFilter === "active" ? Boolean(title.active) : !title.active))
+    )
+  })
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -1198,28 +1257,77 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         icon="⭐"
         size="lg"
       >
-            <div className="flex justify-between items-center">
-              <h3 className="text-amber-200 font-serif">Minhas Habilidades</h3>
-              <Button
-                onClick={() => {
-                  setContentInitialTab("ability")
-                  setSelectedManga(mangas[0]?.id || null)
-                  setShowAddContent(true)
-                }}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Habilidade
-              </Button>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-amber-200 font-serif">Minhas Habilidades</h3>
+                <Button
+                  onClick={() => {
+                    setContentInitialTab("ability")
+                    setSelectedManga(mangas[0]?.id || null)
+                    setShowAddContent(true)
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Habilidade
+                </Button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar habilidades por nome ou descrição..."
+                  value={abilitySearchFilter}
+                  onChange={(e) => setAbilitySearchFilter(e.target.value)}
+                  className="pl-10 bg-slate-700/50 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20"
+                />
+              </div>
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                {[{ value: "all", label: "Todas" }, { value: "active", label: "Ativas" }, { value: "passive", label: "Passivas" }].map((filter) => (
+                  <Button
+                    key={filter.value}
+                    variant={abilityTypeFilter === filter.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAbilityTypeFilter(filter.value)}
+                    className={abilityTypeFilter === filter.value
+                      ? "bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20 text-xs"}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                <span className="text-xs text-amber-300/70 self-center">Categoria:</span>
+                {[{ value: "all", label: "Todas" }, ...Object.entries(abilityCategoryLabels).map(([value, label]) => ({ value, label }))].map((filter) => (
+                  <Button
+                    key={filter.value}
+                    variant={abilityCategoryFilter === filter.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAbilityCategoryFilter(filter.value)}
+                    className={abilityCategoryFilter === filter.value
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                      : "bg-slate-700/50 border-indigo-500/30 text-indigo-200 hover:bg-indigo-500/20 text-xs"}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             {abilities.length === 0 ? (
               <div className="text-center text-amber-300/60 py-8">
                 <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhuma habilidade adquirida ainda.</p>
               </div>
+            ) : filteredAbilities.length === 0 ? (
+              <div className="text-center text-amber-300/60 py-8">
+                <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhuma habilidade encontrada.</p>
+                <p className="text-sm">Tente alterar a busca ou os filtros.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {abilities.map((ability) => (
+                {filteredAbilities.map((ability) => (
                   <Card key={ability.id} className="bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
@@ -1280,28 +1388,78 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         icon="🎒"
         size="lg"
       >
-            <div className="flex justify-between items-center">
-              <h3 className="text-amber-200 font-serif">Meu Inventário</h3>
-              <Button
-                onClick={() => {
-                  setContentInitialTab("item")
-                  setSelectedManga(mangas[0]?.id || null)
-                  setShowAddContent(true)
-                }}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Item
-              </Button>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-amber-200 font-serif">Meu Inventário</h3>
+                <Button
+                  onClick={() => {
+                    setContentInitialTab("item")
+                    setSelectedManga(mangas[0]?.id || null)
+                    setShowAddContent(true)
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Item
+                </Button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar itens por nome ou descrição..."
+                  value={itemSearchFilter}
+                  onChange={(e) => setItemSearchFilter(e.target.value)}
+                  className="pl-10 bg-slate-700/50 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20"
+                />
+              </div>
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                <span className="text-xs text-amber-300/70 self-center">Tipo:</span>
+                {[{ value: "all", label: "Todos" }, ...Object.entries(itemTypeLabels).map(([value, label]) => ({ value, label }))].map((filter) => (
+                  <Button
+                    key={filter.value}
+                    variant={itemTypeFilter === filter.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setItemTypeFilter(filter.value)}
+                    className={itemTypeFilter === filter.value
+                      ? "bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20 text-xs"}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                <span className="text-xs text-amber-300/70 self-center">Raridade:</span>
+                {[{ value: "all", label: "Todas" }, ...Object.entries(itemRarityLabels).map(([value, label]) => ({ value, label }))].map((filter) => (
+                  <Button
+                    key={filter.value}
+                    variant={itemRarityFilter === filter.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setItemRarityFilter(filter.value)}
+                    className={itemRarityFilter === filter.value
+                      ? "bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                      : "bg-slate-700/50 border-purple-500/30 text-purple-200 hover:bg-purple-500/20 text-xs"}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             {items.length === 0 ? (
               <div className="text-center text-amber-300/60 py-8">
                 <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhum item adquirido ainda.</p>
               </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-center text-amber-300/60 py-8">
+                <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum item encontrado.</p>
+                <p className="text-sm">Tente alterar a busca ou os filtros.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <Card key={item.id} className="bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300">
                     <CardContent className="p-4">
                       <div className="mb-2">
@@ -1793,28 +1951,61 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
         icon="👑"
         size="md"
       >
-            <div className="flex justify-between items-center">
-              <h3 className="text-amber-200 font-serif">Meus Títulos</h3>
-              <Button
-                onClick={() => {
-                  setContentInitialTab("title")
-                  setSelectedManga(mangas[0]?.id || null)
-                  setShowAddContent(true)
-                }}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Título
-              </Button>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-amber-200 font-serif">Meus Títulos</h3>
+                <Button
+                  onClick={() => {
+                    setContentInitialTab("title")
+                    setSelectedManga(mangas[0]?.id || null)
+                    setShowAddContent(true)
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Título
+                </Button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar títulos por nome ou descrição..."
+                  value={titleSearchFilter}
+                  onChange={(e) => setTitleSearchFilter(e.target.value)}
+                  className="pl-10 bg-slate-700/50 border-amber-500/30 text-amber-100 placeholder:text-amber-400/60 focus:border-amber-400 focus:ring-amber-400/20"
+                />
+              </div>
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap justify-center" : "flex-wrap"}`}>
+                {[{ value: "all", label: "Todos" }, { value: "active", label: "Ativos" }, { value: "inactive", label: "Inativos" }].map((filter) => (
+                  <Button
+                    key={filter.value}
+                    variant={titleStatusFilter === filter.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTitleStatusFilter(filter.value)}
+                    className={titleStatusFilter === filter.value
+                      ? "bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                      : "bg-slate-700/50 border-amber-500/30 text-amber-200 hover:bg-amber-500/20 text-xs"}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             {titles.length === 0 ? (
               <div className="text-center text-amber-300/60 py-8">
                 <Trophy className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhum título conquistado ainda.</p>
               </div>
+            ) : filteredTitles.length === 0 ? (
+              <div className="text-center text-amber-300/60 py-8">
+                <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum título encontrado.</p>
+                <p className="text-sm">Tente alterar a busca ou o filtro.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {titles.map((title) => (
+                {filteredTitles.map((title) => (
                   <Card 
                     key={title.id} 
                     className="bg-slate-700/50 border-amber-500/30 shadow-lg shadow-purple-500/10 hover:scale-105 transition-all duration-300 cursor-pointer group"
