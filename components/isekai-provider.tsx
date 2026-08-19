@@ -1,8 +1,18 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
-import type { Manga, Ability, Item, Title, UserProfile } from "@/lib/isekai-types"
+import type { Manga, Ability, Item, Title, UserProfile, Mission, Achievement, SeasonProgress, ReadingActivity } from "@/lib/isekai-types"
 import { calculateTotalAttributes } from "@/lib/isekai-types"
+import {
+  createDefaultAchievements,
+  createDefaultSeason,
+  createMissionSet,
+  getAchievementProgress,
+  getMissionProgress,
+  getSeasonExperienceForMission,
+  getWeeklyPeriodKey,
+  type MissionSnapshot,
+} from "@/lib/isekai-missions"
 import { useToast } from "@/hooks/use-toast"
 import { NotificationManager } from "./animated-notification"
 import { getMangaRewards, getMangaRewardsByTitle, getRewardId, getRewardsToRemove, getPendingRewards, getAllMangaRewards, getAllMangaRewardsByTitle, type MangaReward } from "@/lib/manga-rewards"
@@ -23,6 +33,10 @@ interface IsekaiContextType {
   titles: Title[]
   notifications: Notification[]
   collectedRewards: string[]
+  missions: Mission[]
+  achievements: Achievement[]
+  season: SeasonProgress
+  readingActivities: ReadingActivity[]
   addManga: (manga: Omit<Manga, "id" | "dateAdded">) => void
   addAbility: (ability: Omit<Ability, "id" | "level" | "sources">, mangaId: string, silent?: boolean) => void
   editAbility: (abilityId: string, updatedAbility: Partial<Ability>) => void
@@ -56,6 +70,7 @@ interface IsekaiContextType {
   removeNotification: (id: string) => void
   clearCollectedRewards: () => void
   syncMangaRewards: (mangaId: string) => Promise<void>
+  refreshProgression: () => void
 }
 
 const IsekaiContext = createContext<IsekaiContextType | undefined>(undefined)
@@ -101,8 +116,16 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   const [items, setItems] = useState<Item[]>([])
   const [titles, setTitles] = useState<Title[]>([])
   const [collectedRewards, setCollectedRewards] = useState<string[]>([])
+  const [missions, setMissions] = useState<Mission[]>([])
+  const [achievements, setAchievements] = useState<Achievement[]>(() => createDefaultAchievements())
+  const [season, setSeason] = useState<SeasonProgress>(() => createDefaultSeason())
+  const [readingActivities, setReadingActivities] = useState<ReadingActivity[]>([])
   const [syncingRewards, setSyncingRewards] = useState<Set<string>>(new Set())
   const [lastNotificationTime, setLastNotificationTime] = useState<Record<string, number>>({})
+  const hasLoadedDataRef = useRef(false)
+  const [isHydrated, setIsHydrated] = useState(false)
+  const rewardedMissionIdsRef = useRef<Set<string>>(new Set())
+  const rewardedAchievementIdsRef = useRef<Set<string>>(new Set())
 
   // Utilitário: possíveis IDs de recompensa derivados do título
   const getPossibleRewardPrefixesFromTitle = (title: string) => {
@@ -154,10 +177,26 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
           setTitles(uniqueTitles)
         }
         if (data.collectedRewards) setCollectedRewards(data.collectedRewards)
+        if (Array.isArray(data.missions)) {
+          setMissions(data.missions)
+          rewardedMissionIdsRef.current = new Set(data.missions.filter((mission: Mission) => mission.completed).map((mission: Mission) => mission.id))
+        }
+        if (Array.isArray(data.achievements)) {
+          const defaultAchievements = createDefaultAchievements()
+          setAchievements(defaultAchievements.map((achievement) => {
+            const saved = data.achievements.find((item: Achievement) => item.id === achievement.id)
+            return saved ? { ...achievement, ...saved } : achievement
+          }))
+          rewardedAchievementIdsRef.current = new Set(data.achievements.filter((achievement: Achievement) => achievement.unlocked).map((achievement: Achievement) => achievement.id))
+        }
+        if (data.season) setSeason({ ...createDefaultSeason(), ...data.season })
+        if (Array.isArray(data.readingActivities)) setReadingActivities(data.readingActivities)
       } catch (error) {
         console.error("Erro ao carregar dados do usuário:", error)
       }
     }
+    hasLoadedDataRef.current = true
+    setIsHydrated(true)
   }, [userName])
 
   // Keep totalMangasRead in sync with current manga list
@@ -171,7 +210,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   // Save all data together for this user
   useEffect(() => {
     // Só salva se não for o estado inicial vazio
-    if (profile.name && (mangas.length > 0 || abilities.length > 0 || items.length > 0 || titles.length > 0 || profile.experience > 0)) {
+    if (profile.name && (mangas.length > 0 || abilities.length > 0 || items.length > 0 || titles.length > 0 || missions.length > 0 || achievements.some((achievement) => achievement.unlocked) || profile.experience > 0)) {
       const userKey = `isekai-data-${userName}`
       const data = {
         profile: { ...profile, name: userName },
@@ -179,12 +218,119 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         abilities,
         items,
         titles,
-        collectedRewards
+        collectedRewards,
+        missions,
+        achievements,
+        season,
+        readingActivities
       }
       localStorage.setItem(userKey, JSON.stringify(data))
     }
-  }, [profile, mangas, abilities, items, titles, collectedRewards, userName])
+  }, [profile, mangas, abilities, items, titles, collectedRewards, missions, achievements, season, readingActivities, userName])
 
+
+  const getMissionSnapshot = (): MissionSnapshot => ({
+    mangas,
+    abilities,
+    items,
+    titles,
+    readingActivities,
+  })
+
+  const recordReadingActivity = (chapters: number) => {
+    if (chapters <= 0) return
+    const date = new Date().toISOString().slice(0, 10)
+    setReadingActivities((prev) => {
+      const existing = prev.find((activity) => activity.date === date)
+      if (existing) {
+        return prev.map((activity) => activity.date === date ? { ...activity, chapters: activity.chapters + chapters } : activity)
+      }
+      return [...prev, { date, chapters }]
+    })
+  }
+
+  const grantMissionReward = (mission: Mission) => {
+    if (rewardedMissionIdsRef.current.has(mission.id)) return
+    rewardedMissionIdsRef.current.add(mission.id)
+    addExperience(mission.rewardXP)
+    setSeason((prev) => {
+      if (prev.completedMissionIds.includes(mission.id)) return prev
+      let experience = prev.experience + getSeasonExperienceForMission(mission)
+      let level = prev.level
+      let experienceToNextLevel = prev.experienceToNextLevel
+      while (experience >= experienceToNextLevel) {
+        experience -= experienceToNextLevel
+        level += 1
+        experienceToNextLevel = level * 250
+      }
+      return {
+        ...prev,
+        level,
+        experience,
+        experienceToNextLevel,
+        completedMissionIds: [...prev.completedMissionIds, mission.id],
+      }
+    })
+    addNotification({
+      type: "success",
+      title: "🧭 Missão Concluída!",
+      description: `${mission.title} · +${mission.rewardXP} XP`,
+    })
+  }
+
+  const refreshProgression = () => {
+    if (!isHydrated) return
+    const now = new Date()
+    const snapshot = getMissionSnapshot()
+    const generatedMissions = createMissionSet(mangas, now)
+    const currentPeriod = getWeeklyPeriodKey(now)
+
+    setSeason((prev) => prev.id === currentPeriod ? prev : createDefaultSeason(now))
+
+    const newlyCompletedMissions: Mission[] = []
+    const refreshedMissions = generatedMissions.map((mission) => {
+      const previous = missions.find((item) => item.id === mission.id)
+      const progress = getMissionProgress(mission, snapshot, now)
+      const completed = Boolean(previous?.completed || progress >= mission.target)
+      if (completed && !previous?.completed && previous) newlyCompletedMissions.push(mission)
+      return {
+        ...mission,
+        progress,
+        completed,
+        completedAt: previous?.completedAt || (completed && previous ? now.toISOString() : undefined),
+      }
+    })
+    setMissions(refreshedMissions)
+    newlyCompletedMissions.forEach(grantMissionReward)
+
+    const newlyUnlockedAchievements: Achievement[] = []
+    const refreshedAchievements = achievements.map((achievement) => {
+      const progress = Math.min(achievement.target, getAchievementProgress(achievement, snapshot))
+      const unlocked = achievement.unlocked || progress >= achievement.target
+      if (unlocked && !achievement.unlocked) newlyUnlockedAchievements.push(achievement)
+      return {
+        ...achievement,
+        progress,
+        unlocked,
+        unlockedAt: achievement.unlockedAt || (unlocked ? now.toISOString() : undefined),
+      }
+    })
+    setAchievements(refreshedAchievements)
+    newlyUnlockedAchievements.forEach((achievement) => {
+      if (rewardedAchievementIdsRef.current.has(achievement.id)) return
+      rewardedAchievementIdsRef.current.add(achievement.id)
+      addExperience(achievement.rewardXP)
+      addNotification({
+        type: "success",
+        title: `${achievement.icon} Conquista desbloqueada!`,
+        description: `${achievement.title} · +${achievement.rewardXP} XP`,
+      })
+    })
+  }
+
+  useEffect(() => {
+    refreshProgression()
+  }, [isHydrated, mangas, abilities, items, titles, readingActivities])
 
   useEffect(() => {
     const baseAttributes = calculateTotalAttributes(abilities)
@@ -550,6 +696,12 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
     setItems([])
     setTitles([])
     setCollectedRewards([])
+    setMissions([])
+    setAchievements(createDefaultAchievements())
+    setSeason(createDefaultSeason())
+    setReadingActivities([])
+    rewardedMissionIdsRef.current.clear()
+    rewardedAchievementIdsRef.current.clear()
     
     toast({
       title: "Perfil resetado!",
@@ -1063,11 +1215,14 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
   }
 
   const updateMangaEpisode = (mangaId: string, episode: number) => {
+    const previousEpisode = mangas.find((manga) => manga.id === mangaId)?.currentEpisode || 0
+    const chaptersRead = Math.max(0, episode - previousEpisode)
     setMangas((prev) =>
       prev.map((manga) =>
         manga.id === mangaId ? { ...manga, currentEpisode: episode } : manga
       )
     )
+    recordReadingActivity(chaptersRead)
     
     addNotification({
       type: "success",
@@ -1088,6 +1243,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         return manga
       })
     )
+    recordReadingActivity(1)
     
     // Ganha 10 XP por episódio lido
     addExperience(10)
@@ -1176,7 +1332,11 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
       abilities,
       items,
       titles,
-      version: 1,
+      missions,
+      achievements,
+      season,
+      readingActivities,
+      version: 2,
       exportedAt: new Date().toISOString(),
     }
     return JSON.stringify(payload, null, 2)
@@ -1204,6 +1364,12 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
       }))
       console.log("Títulos importados:", titlesWithActive.map(t => ({ name: t.name, active: t.active, effects: t.effects })))
       setTitles(titlesWithActive)
+      setMissions(Array.isArray(data.missions) ? data.missions : [])
+      setAchievements(Array.isArray(data.achievements) ? data.achievements : createDefaultAchievements())
+      setSeason(data.season ? { ...createDefaultSeason(), ...data.season } : createDefaultSeason())
+      setReadingActivities(Array.isArray(data.readingActivities) ? data.readingActivities : [])
+      rewardedMissionIdsRef.current.clear()
+      rewardedAchievementIdsRef.current.clear()
       
       // Forçar recálculo dos atributos após importação
       setTimeout(() => {
@@ -1275,7 +1441,11 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         items,
         titles,
         collectedRewards,
-        version: 1,
+        missions,
+        achievements,
+        season,
+        readingActivities,
+        version: 2,
         exportedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
@@ -1332,7 +1502,11 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         items,
         titles,
         collectedRewards,
-        version: 1,
+        missions,
+        achievements,
+        season,
+        readingActivities,
+        version: 2,
         exportedAt: new Date().toISOString(),
       }
       
@@ -1485,6 +1659,12 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
       if (data.collectedRewards) {
         setCollectedRewards(data.collectedRewards)
       }
+      setMissions(Array.isArray(data.missions) ? data.missions : [])
+      setAchievements(Array.isArray(data.achievements) ? data.achievements : createDefaultAchievements())
+      setSeason(data.season ? { ...createDefaultSeason(), ...data.season } : createDefaultSeason())
+      setReadingActivities(Array.isArray(data.readingActivities) ? data.readingActivities : [])
+      rewardedMissionIdsRef.current.clear()
+      rewardedAchievementIdsRef.current.clear()
       
       // Forçar recálculo dos atributos após importação
       setTimeout(() => {
@@ -1699,6 +1879,10 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         titles,
         notifications,
         collectedRewards,
+        missions,
+        achievements,
+        season,
+        readingActivities,
         addManga,
         addAbility,
         editAbility,
@@ -1732,6 +1916,7 @@ export function IsekaiProvider({ children, userName }: IsekaiProviderProps) {
         removeNotification,
         clearCollectedRewards,
         syncMangaRewards,
+        refreshProgression,
       }}
     >
       {children}

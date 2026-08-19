@@ -46,7 +46,10 @@ import {
   RefreshCw,
   Copy,
   Lock,
-  LockOpen
+  LockOpen,
+  Target,
+  CalendarDays,
+  Medal
 } from "lucide-react"
 import Image from "next/image"
 import type { ReleaseWeekday } from "@/lib/isekai-types"
@@ -85,7 +88,12 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     incrementEpisode, 
     decrementEpisode,
     syncMangaRewards,
-    addNotification
+    addNotification,
+    missions,
+    achievements,
+    season,
+    readingActivities,
+    refreshProgression
   } = useIsekai()
 
   const [activeModal, setActiveModal] = useState<string | null>(null)
@@ -149,6 +157,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
   const [titleStatusFilter, setTitleStatusFilter] = useState("all")
   const [codexSearchFilter, setCodexSearchFilter] = useState("")
   const [codexStatusFilter, setCodexStatusFilter] = useState("all")
+  const [missionTypeFilter, setMissionTypeFilter] = useState<"all" | "daily" | "weekly" | "journey">("all")
   const [abilityToEdit, setAbilityToEdit] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [xpGainAnimation, setXpGainAnimation] = useState<{ show: boolean; amount: number; x: number; y: number }>({ show: false, amount: 0, x: 0, y: 0 })
@@ -651,6 +660,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
     const mangaAbilities = abilities.filter((ability) => ability.sources?.includes(manga.id))
     const mangaItems = items.filter((item) => item.source === manga.id)
     const mangaTitles = titles.filter((title) => title.source === manga.id)
+    const mangaJourneyMissions = missions.filter((mission) => mission.type === "journey" && mission.mangaId === manga.id)
     const remainingEpisodes = getRemainingEpisodes(manga)
 
     return {
@@ -658,6 +668,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
       abilities: mangaAbilities,
       items: mangaItems,
       titles: mangaTitles,
+      journeyMissions: mangaJourneyMissions,
       remainingEpisodes,
       hasContent: mangaAbilities.length + mangaItems.length + mangaTitles.length > 0,
     }
@@ -682,6 +693,17 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
 
     return (!normalizedCodexSearch || searchableText.includes(normalizedCodexSearch)) && matchesStatus
   })
+
+  const dailyMissions = missions.filter((mission) => mission.type === "daily")
+  const weeklyMissions = missions.filter((mission) => mission.type === "weekly")
+  const journeyMissions = missions.filter((mission) => mission.type === "journey")
+  const filteredMissions = missions.filter((mission) => missionTypeFilter === "all" || mission.type === missionTypeFilter)
+  const completedMissionCount = missions.filter((mission) => mission.completed).length
+  const unlockedAchievementCount = achievements.filter((achievement) => achievement.unlocked).length
+  const seasonProgress = season.experienceToNextLevel > 0 ? Math.min(100, (season.experience / season.experienceToNextLevel) * 100) : 0
+  const totalReadChapters = mangas.reduce((total, manga) => total + (manga.currentEpisode || 0), 0)
+  const readingDays = new Set(readingActivities.map((activity) => activity.date)).size
+  const nextMission = missions.find((mission) => !mission.completed)
 
   return (
     <div className="fixed top-4 right-4 z-50">
@@ -943,6 +965,15 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
             >
               <Sparkles className="w-4 h-4 mr-1 text-indigo-300" />
               Codex
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleModalOpen("missions")}
+              className="text-xs border-amber-500/50 bg-slate-800/80 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100"
+            >
+              <Target className="w-4 h-4 mr-1 text-orange-300" />
+              Missões
             </Button>
             <Button
               variant="outline"
@@ -2197,7 +2228,7 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
             </div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {filteredCodexEntries.map(({ manga, abilities: mangaAbilities, items: mangaItems, titles: mangaTitles, remainingEpisodes, hasContent }) => {
+              {filteredCodexEntries.map(({ manga, abilities: mangaAbilities, items: mangaItems, titles: mangaTitles, journeyMissions: mangaJourneyMissions, remainingEpisodes, hasContent }) => {
                 const currentEpisode = manga.currentEpisode || 0
                 const totalChapters = manga.totalChapters || 0
                 const progress = totalChapters > 0 ? Math.min(100, (currentEpisode / totalChapters) * 100) : 0
@@ -2238,6 +2269,18 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
                             Capítulos: <strong className="text-amber-100">{currentEpisode}</strong> / {totalChapters > 0 ? totalChapters : "—"}
                           </div>
                           <Progress value={progress} className="h-2 bg-slate-600" />
+                          {mangaJourneyMissions.length > 0 && (
+                            <div className="rounded bg-indigo-500/10 p-2 text-xs text-indigo-200">
+                              <div className="mb-1 flex justify-between gap-2">
+                                <span>Jornada</span>
+                                <span>{mangaJourneyMissions.filter((mission) => mission.completed).length}/{mangaJourneyMissions.length} marcos</span>
+                              </div>
+                              <Progress
+                                value={(mangaJourneyMissions.filter((mission) => mission.completed).length / mangaJourneyMissions.length) * 100}
+                                className="h-1.5 bg-slate-600"
+                              />
+                            </div>
+                          )}
                           <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
                             <div className="rounded bg-amber-500/10 p-1 text-amber-200">{mangaAbilities.length} habilidades</div>
                             <div className="rounded bg-blue-500/10 p-1 text-blue-200">{mangaItems.length} itens</div>
@@ -2298,6 +2341,202 @@ export function FloatingCharacterWindow({ userName }: FloatingCharacterWindowPro
               })}
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Modal de Missões e Jornadas */}
+      <Modal
+        isOpen={activeModal === "missions"}
+        onClose={() => {
+          setActiveModal(null)
+          setIsMinimized(false)
+        }}
+        title="Quadro de Missões"
+        icon="🧭"
+        size="xl"
+      >
+        <div className="space-y-5">
+          <Card className="overflow-hidden border-orange-400/30 bg-gradient-to-br from-orange-950/70 via-slate-800/80 to-purple-950/70 shadow-lg shadow-orange-500/10">
+            <CardContent className="p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <Badge className="bg-orange-600/80 text-white">Temporada ativa</Badge>
+                    <Badge variant="outline" className="border-orange-300/30 text-orange-200">Nível {season.level}</Badge>
+                  </div>
+                  <h3 className="text-xl font-bold text-orange-100 font-serif">{season.title}</h3>
+                  <p className="text-sm text-orange-200/70 mt-1">{season.subtitle}</p>
+                </div>
+                <div className="w-full md:w-64 space-y-2">
+                  <div className="flex justify-between text-xs text-orange-200">
+                    <span>Progresso da temporada</span>
+                    <span>{season.experience} / {season.experienceToNextLevel} XP</span>
+                  </div>
+                  <Progress value={seasonProgress} className="h-3 bg-slate-700" />
+                  <p className="text-right text-[11px] text-orange-200/60">Complete missões para evoluir sua temporada.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-lg border border-orange-400/20 bg-orange-500/10 p-3 text-center">
+              <Target className="mx-auto mb-1 h-5 w-5 text-orange-300" />
+              <p className="text-[11px] text-orange-200/70">Missões concluídas</p>
+              <p className="text-lg font-bold text-orange-100">{completedMissionCount}/{missions.length}</p>
+            </div>
+            <div className="rounded-lg border border-blue-400/20 bg-blue-500/10 p-3 text-center">
+              <BookOpen className="mx-auto mb-1 h-5 w-5 text-blue-300" />
+              <p className="text-[11px] text-blue-200/70">Capítulos lidos</p>
+              <p className="text-lg font-bold text-blue-100">{totalReadChapters}</p>
+            </div>
+            <div className="rounded-lg border border-green-400/20 bg-green-500/10 p-3 text-center">
+              <CalendarDays className="mx-auto mb-1 h-5 w-5 text-green-300" />
+              <p className="text-[11px] text-green-200/70">Dias de leitura</p>
+              <p className="text-lg font-bold text-green-100">{readingDays}</p>
+            </div>
+            <div className="rounded-lg border border-purple-400/20 bg-purple-500/10 p-3 text-center">
+              <Medal className="mx-auto mb-1 h-5 w-5 text-purple-300" />
+              <p className="text-[11px] text-purple-200/70">Conquistas</p>
+              <p className="text-lg font-bold text-purple-100">{unlockedAchievementCount}/{achievements.length}</p>
+            </div>
+          </div>
+
+          {nextMission && (
+            <Card className="border-indigo-400/30 bg-indigo-950/40">
+              <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">{nextMission.icon}</div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">Próximo objetivo</p>
+                    <h4 className="font-bold text-indigo-100">{nextMission.title}</h4>
+                    <p className="text-xs text-indigo-200/70">{nextMission.description}</p>
+                  </div>
+                </div>
+                <div className="text-left md:text-right">
+                  <p className="text-xs text-indigo-200/60">Recompensa</p>
+                  <p className="font-bold text-indigo-200">+{nextMission.rewardXP} XP</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-bold text-amber-100 font-serif">Missões ativas</h3>
+              <p className="text-xs text-amber-200/60">Leia, avance e transforme cada capítulo em progresso.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {([
+                ["all", "Todas"],
+                ["daily", "Diárias"],
+                ["weekly", "Semanais"],
+                ["journey", "Jornadas"],
+              ] as const).map(([value, label]) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={missionTypeFilter === value ? "default" : "outline"}
+                  onClick={() => setMissionTypeFilter(value)}
+                  className={missionTypeFilter === value ? "bg-orange-600 hover:bg-orange-700 text-white" : "border-orange-500/30 text-orange-200 hover:bg-orange-500/10"}
+                >
+                  {label}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={refreshProgression}
+                className="border-indigo-400/30 text-indigo-200 hover:bg-indigo-500/10"
+                title="Atualizar progresso das missões"
+              >
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                Atualizar
+              </Button>
+            </div>
+          </div>
+
+          {filteredMissions.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-orange-400/30 bg-slate-800/30 p-8 text-center">
+              <Target className="mx-auto mb-3 h-10 w-10 text-orange-300/50" />
+              <p className="text-orange-200/70">Nenhuma missão disponível neste filtro.</p>
+              <p className="text-xs text-orange-200/50 mt-1">Cadastre um mangá ou avance sua leitura para criar novas Jornadas.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+              {filteredMissions.map((mission) => {
+                const progressPercent = mission.target > 0 ? Math.min(100, (mission.progress / mission.target) * 100) : 0
+                const typeLabel = mission.type === "daily" ? "Diária" : mission.type === "weekly" ? "Semanal" : "Jornada"
+                const linkedManga = mission.mangaId ? getMangaById(mission.mangaId) : undefined
+                return (
+                  <Card key={mission.id} className={`border transition-colors ${mission.completed ? "border-emerald-400/30 bg-emerald-950/20" : "border-orange-400/20 bg-slate-800/60"}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="text-2xl">{mission.icon}</div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="truncate font-bold text-amber-100">{mission.title}</h4>
+                              <Badge variant="outline" className="border-amber-400/30 text-[10px] text-amber-200">{typeLabel}</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-amber-200/65">{mission.description}</p>
+                            {linkedManga && <p className="mt-1 truncate text-[11px] text-indigo-200/70">Obra: {linkedManga.title}</p>}
+                          </div>
+                        </div>
+                        {mission.completed ? (
+                          <Badge className="shrink-0 bg-emerald-600/80 text-white">Concluída</Badge>
+                        ) : (
+                          <Badge className="shrink-0 bg-orange-600/70 text-white">+{mission.rewardXP} XP</Badge>
+                        )}
+                      </div>
+                      <div className="mt-4 space-y-1.5">
+                        <div className="flex justify-between text-[11px] text-amber-200/70">
+                          <span>{mission.completed ? "Objetivo alcançado" : "Progresso"}</span>
+                          <span>{mission.progress} / {mission.target}</span>
+                        </div>
+                        <Progress value={progressPercent} className={`h-2 ${mission.completed ? "bg-emerald-950" : "bg-slate-700"}`} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-purple-100 font-serif">Conquistas</h3>
+                <p className="text-xs text-purple-200/60">Feitos permanentes que registram sua evolução.</p>
+              </div>
+              <Badge className="bg-purple-600/70 text-white">{unlockedAchievementCount} desbloqueadas</Badge>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {achievements.map((achievement) => {
+                const achievementPercent = achievement.target > 0 ? Math.min(100, (achievement.progress / achievement.target) * 100) : 0
+                return (
+                  <Card key={achievement.id} className={`border ${achievement.unlocked ? "border-purple-400/40 bg-purple-950/30" : "border-slate-600/60 bg-slate-800/40"}`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`text-2xl ${achievement.unlocked ? "" : "grayscale opacity-50"}`}>{achievement.icon}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="truncate font-semibold text-purple-100">{achievement.title}</h4>
+                            {achievement.unlocked && <Badge className="bg-purple-600/80 text-[10px] text-white">Desbloqueada</Badge>}
+                          </div>
+                          <p className="mt-1 text-xs text-purple-200/60">{achievement.description}</p>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex justify-between text-[10px] text-purple-200/60"><span>{achievement.progress} / {achievement.target}</span><span>+{achievement.rewardXP} XP</span></div>
+                            <Progress value={achievementPercent} className="h-1.5 bg-slate-700" />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </Modal>
 

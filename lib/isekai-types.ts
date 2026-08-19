@@ -62,6 +62,73 @@ export interface Title {
   active?: boolean
 }
 
+export type MissionType = "daily" | "weekly" | "journey"
+
+export type MissionObjective =
+  | "read_chapters"
+  | "reach_episode"
+  | "complete_manga"
+  | "add_manga"
+  | "unlock_content"
+  | "read_days"
+
+export interface Mission {
+  id: string
+  type: MissionType
+  objective: MissionObjective
+  title: string
+  description: string
+  icon: string
+  target: number
+  progress: number
+  rewardXP: number
+  mangaId?: string
+  targetEpisode?: number
+  periodKey?: string
+  completed: boolean
+  completedAt?: string
+  createdAt: string
+  expiresAt?: string
+}
+
+export type AchievementObjective =
+  | "mangas"
+  | "chapters"
+  | "abilities"
+  | "items"
+  | "titles"
+  | "completed_journeys"
+  | "read_days"
+
+export interface Achievement {
+  id: string
+  title: string
+  description: string
+  icon: string
+  objective: AchievementObjective
+  target: number
+  progress: number
+  unlocked: boolean
+  unlockedAt?: string
+  rewardXP: number
+}
+
+export interface ReadingActivity {
+  date: string
+  chapters: number
+}
+
+export interface SeasonProgress {
+  id: string
+  title: string
+  subtitle: string
+  level: number
+  experience: number
+  experienceToNextLevel: number
+  startedAt: string
+  completedMissionIds: string[]
+}
+
 export interface UserProfile {
   name: string
   level: number
